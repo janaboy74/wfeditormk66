@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="wfeditormk66" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/wfeditormk66" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-O0" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/wfeditormk66" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="0" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="`pkg-config gtk+-3.0 --cflags`" />
+			<Add option="`pkg-config gtkmm-3.0 --cflags`" />
+			<Add option="`pkg-config libcurl --cflags`" />
+			<Add option="`pkg-config libpng --cflags`" />
+			<Add directory="pngdec" />
+		</Compiler>
+		<Linker>
+			<Add option="`pkg-config gtk+-3.0 --libs`" />
+			<Add option="`pkg-config gtkmm-3.0 --libs`" />
+			<Add option="`pkg-config libcurl --libs`" />
+			<Add option="`pkg-config libpng --libs`" />
+			<Add library="stdc++" />
+			<Add library="m" />
+			<Add directory="pngdec/bin" />
+		</Linker>
+		<Unit filename="src/base.cpp" />
+		<Unit filename="src/base.h" />
+		<Unit filename="src/visuals.cpp" />
+		<Unit filename="src/visuals.h" />
+		<Unit filename="src/watchface.cpp" />
+		<Unit filename="src/watchface.h" />
+		<Unit filename="src/window.cpp" />
+		<Unit filename="src/window.h" />
+		<Extensions />
+	</Project>
+</CodeBlocks_project_file>
