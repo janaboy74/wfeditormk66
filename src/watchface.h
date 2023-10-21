@@ -37,6 +37,13 @@ struct item {
     /* constructor */                   item( const item &other );
     void operator = ( const item &other );
 };
+
+struct rgbColor {
+    unsigned char                       r;
+    unsigned char                       g;
+    unsigned char                       b;
+};
+
 #pragma pack( pop )
 
 struct imgitem : public item {

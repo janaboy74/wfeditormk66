@@ -52,7 +52,6 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
     gHBox.add( drawArea.gShift );
     drawArea.gPosX.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_width_changed ));
     drawArea.gPosY.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_height_changed ));
-    drawArea.gShift.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_shift_changed ));
 
     drawArea.set_vexpand(true);
     gVBox.add( gHBox );
@@ -92,6 +91,7 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
                 corestring file;
                 file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
                 ReadFile( file.c_str() );
+                drawArea.resetShift();
             }
         }
         if( GDK_KEY_w == event->keyval ) {
@@ -102,21 +102,29 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
                 corestring file;
                 file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
                 ReadFile( file.c_str() );
+                drawArea.resetShift();
             }
         }
         if( GDK_KEY_s == event->keyval ) {
             drawArea.saveFile();
         }
-        if( GDK_KEY_p == event->keyval ) {
-            drawArea.preview = !drawArea.preview;
+        if( GDK_KEY_d == event->keyval ) {
+            drawArea.debug = !drawArea.debug;
         }
         if( GDK_KEY_F1 == event->keyval ) {
             drawArea.preview = true;
+            drawArea.resetShift();
         }
         if( GDK_KEY_F2 == event->keyval ) {
             drawArea.shift = 0;
             drawArea.preview = false;
             drawArea.gTypes.set_active_text("");
+        }
+        if( GDK_KEY_0 < event->keyval || GDK_KEY_9 > event->keyval ) {
+            if( get_focus() == &drawArea.gPosX || get_focus() == &drawArea.gPosY ) {
+                drawArea.gShift.grab_focus();
+                return true;
+            }
         }
         return false;
     }, false);
@@ -188,7 +196,7 @@ void MyWindow::on_load_clicked() {
     if( !drawArea.gTypes.get_active_text().size() )
         return;
 
-    int itemid = atol( drawArea.gTypes.get_active_text().c_str() );
+    int itemid = drawArea.itemTextToID( drawArea.gTypes.get_active_text().c_str() );
 
     ustring filename = getFilenameDialog( "Please choose a file", FILE_CHOOSER_ACTION_OPEN, "png" );
 
@@ -199,7 +207,18 @@ void MyWindow::on_load_clicked() {
         destination.height = image->get_height() / destination.imgcount;
         destination.count = destination.width * destination.height * destination.imgcount;
         destination.rgb32 = shared_ptr<unsigned int[]>(new unsigned int[destination.count]);
-        memcpy( destination.rgb32.get(), image->get_pixels(), destination.count * 4 );
+        if( image->get_has_alpha() ) {
+            memcpy( destination.rgb32.get(), image->get_pixels(), destination.count * 4 );
+        } else {
+            rgbColor *rgb = (rgbColor *) image->get_pixels();
+            for( size_t i = 0; i < destination.count; ++i ) {
+                unsigned char *cols = (unsigned char *)&destination.rgb32[ i ];
+                cols[ 0 ] = rgb[ i ].r;
+                cols[ 1 ] = rgb[ i ].g;
+                cols[ 2 ] = rgb[ i ].b;
+                cols[ 3 ] = rgb[ i ].r + rgb[ i ].g + rgb[ i ].b ? 0xff : 0x00;
+            }
+        }
         destination.toorig();
         destination.torgb32();
     }
@@ -211,7 +230,7 @@ void MyWindow::on_save_clicked() {
     if( !drawArea.gTypes.get_active_text().size() )
         return;
 
-    int itemid = atol( drawArea.gTypes.get_active_text().c_str() );
+    int itemid = drawArea.itemTextToID( drawArea.gTypes.get_active_text().c_str() );
 
     ustring filename = getFilenameDialog( "Please choose a file", FILE_CHOOSER_ACTION_SAVE, "png" );
 
