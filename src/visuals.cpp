@@ -1,18 +1,23 @@
 #include "visuals.h"
 
+struct itemParams {
+    int defimgcount;
+    const char *name;
+};
+
 map<char, int> chrtopos= {{'-', 0},{'.', 1},{'/', 2},{'0', 3},{'1', 4},{'2', 5},{'3', 6},{'4', 7},{'5', 8},{'6', 9},{'7', 10},{'8', 11},{'9', 12},{':', 13}};
 vector<int> format = { 4, 5, 6, 11, 13, 19, 21, 25, 27, 30, 33, 47 };
 vector<int> imgs = { 8, 9, 12, 14, 15, 16, 18, 20, 22, 23, 24, 26, 28, 29, 31, 32, 34, 48, 49 };
-map<int, int> defimgcount= {{1, 1},{2, 1},{3, 1},{4, 14},{5, 14},
-    {6, 14},{8, 5},{9, 2},{10, 1},{11, 14},{12, 24},
-    {13, 14},{14, 14},{15, 14},{16, 4},{17, 1},
-    {19, 14},{20, 16},{21, 14},{22, 2},
-    {23, 2},{25, 14},{26, 2},{27, 14},{28, 14},
-    {30, 14},{31, 2},{33, 14},{34, 1},{47, 14},{48, 2},{49, 1}
+map<int, itemParams> itemparams= {{1, {1,"hour-hand-image"}},{2, {1,"minute-hand-image"}},{3, {1,"second-hand-image"}},{4, {14,"hour-digit-text"}},{5, {14,"minute-digit-text"}},
+    {6, {14,"second-digit-text"}},{8, {5,"battery-icons"}},{9, {2,"conntection-indicator-image"}},{10, {1,"preview-image"}},{11, {14,"month-text"}},{12, {24,"month-names-image"}},
+    {13, {14,"day-text"}},{14, {14,"month-day-separator-dash"}},{15, {14,"day-names-image"}},{16, {4,"AM-PM"}},{17, {1,"background-image"}},
+    {19, {14,"bpm-text"}},{20, {16,"weather-icons"}},{21, {14,"temperature-text"}},{22, {2,"temperature-image"}},
+    {23, {2,"bpm-image"}},{25, {14,"steps-count-text"}},{26, {2,"steps-image"}},{27, {14,"year-text"}},{28, {14,"year-month-separator-dash"}},
+    {30, {14,"kcal-text"}},{31, {2,"kcal-image"}},{33, {14,"battery-text"}},{34, {1,"battery-icon"}},{47, {14,"distance-text"}},{48, {2,"distance-image"}},{49, {1,"hour-minute-separator-image"}}
 };
 
 ///////////////////////////////////////
-MyArea::MyArea() : posX( 0 ), posY( 0 ), buttonPressed(false), shift( 0 ), preview( true ) {
+MyArea::MyArea() : posX( 0 ), posY( 0 ), buttonPressed(false), shift( 0 ), preview( true ), debug( false ) {
 ///////////////////////////////////////
     signal_draw().connect( sigc::mem_fun( *this, &MyArea::on_draw ));
     str.format( "%ld", posX );
@@ -30,22 +35,24 @@ MyArea::~MyArea() {};
 ///////////////////////////////////////
 void MyArea::updateTypes() {
 ///////////////////////////////////////
-    corestring text;
     gTypes.remove_all();
 
     for( auto &item : binfile.items ) {
-        text.format( "%ld", item.second.type );
-        gTypes.append( text.c_str() );
+        if( itemparams.find( item.second.type ) != itemparams.end() )
+            gTypes.append( itemparams[ item.second.type ].name );
+        else {
+            str.format( "%ld - unknown", item.second.type );
+            gTypes.append(  str.c_str() );
+        }
     }
 
     gNewTypes.remove_all();
 
-    for( auto &type : defimgcount ) {
+    for( auto &type : itemparams ) {
         if( binfile.items.find( type.first ) != binfile.items.end() )
             continue;
 
-        text.format( "%ld", type.first );
-        gNewTypes.append( text.c_str() );
+        gNewTypes.append( type.second.name );
     }
 }
 
@@ -79,6 +86,25 @@ void MyArea::saveFile() {
         image->save( savefile.c_str(), "png" );
         image.reset();
     }
+}
+
+///////////////////////////////////////
+int MyArea::itemTextToID( const char *name ) {
+///////////////////////////////////////
+    for( auto item : itemparams ) {
+        if( 0 == strcmp( name, item.second.name )) {
+            return item.first;
+        }
+    }
+    return 0;
+}
+
+///////////////////////////////////////
+void MyArea::resetShift() {
+///////////////////////////////////////
+    shift = 0;
+    str.format( "%ld", shift );
+    gShift.set_text( str.c_str() );
 }
 
 ///////////////////////////////////////
@@ -189,35 +215,54 @@ bool MyArea::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
                         continue;
 
                     int isize = 0;
+                    xpos = 0;
 
-                    if( 4 == id )
-                        output.format( "%02ld", timeinfo.tm_hour );
-                    else if ( 5 == id  )
-                        output.format( "%02ld", timeinfo.tm_min );
-                    else if ( 6 == id  )
-                        output.format( "%02ld", timeinfo.tm_sec );
-                    else if ( 11 == id  )
-                        output.format( "%02ld", timeinfo.tm_mon + 1 );
-                    else if ( 13 == id  )
-                        output.format( "%02ld", timeinfo.tm_mday );
-                    else if ( 19 == id  )
-                        output.format( "%02ld", id ), isize = 3 - 2;
+                    if ( 19 == id  )
+                        isize = 3;
                     else if ( 21 == id  )
-                        output.format( "%02ld", id ), isize = 3 - 2;
+                        isize = 3;
                     else if ( 25 == id  )
-                        output.format( "%02ld", id ), isize = 5 - 2;
-                    else if ( 27 == id  )
-                        output.format( "%04ld", timeinfo.tm_year + 1900 );
+                        isize = 5;
                     else if ( 30 == id  )
-                        output.format( "%02ld", id ), isize = 4 - 2;
+                        isize = 4;
                     else if ( 33 == id  )
-                        output.format( "%02ld", id ), isize = 3 - 2;
+                        isize = 3;
                     else if ( 47 == id  )
-                        output.format( "%02ld", id ), isize = 5 - 2;
-                    else
-                        output.format( "%02ld", id );
+                        isize = 5;
 
-                    xpos = isize * clock.width * 0.5;
+                    if( debug ) {
+                        output.format( "%02ld", id );
+                    } else {
+                        if( 4 == id )
+                            output.format( "%02ld", timeinfo.tm_hour );
+                        else if ( 5 == id  )
+                            output.format( "%02ld", timeinfo.tm_min );
+                        else if ( 6 == id  )
+                            output.format( "%02ld", timeinfo.tm_sec );
+                        else if ( 11 == id  )
+                            output.format( "%02ld", timeinfo.tm_mon + 1 );
+                        else if ( 13 == id  )
+                            output.format( "%02ld", timeinfo.tm_mday );
+                        else if ( 19 == id  )
+                            output.format( "%02ld", 80 );
+                        else if ( 21 == id  )
+                            output.format( "%02ld", 20 );
+                        else if ( 25 == id  )
+                            output.format( "%02ld", 2345 );
+                        else if ( 27 == id  )
+                            output.format( "%04ld", timeinfo.tm_year + 1900 );
+                        else if ( 30 == id  )
+                            output.format( "%02ld", 345 );
+                        else if ( 33 == id  )
+                            output.format( "%02ld", 60 );
+                        else if ( 47 == id  )
+                            output.format( "%1.2f", 4.32f );
+                        else
+                            output.format( "%02ld", id );
+                    }
+
+                    if( isize )
+                        xpos = ( isize - ( int ) output.length() ) * clock.width * 0.5f;
 
                     for( auto chr : output) {
                         view.getFromMemory(( unsigned char * )( clock.rgb32.get() + chrtopos[ chr ] * clock.width * clock.height ), clock.width, clock.height );
@@ -236,7 +281,7 @@ bool MyArea::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
             int id = 0;
 
             if( text.size() ) {
-                id = atol( text.c_str() );
+                id = itemTextToID( text.c_str() );
             }
 
             for( auto item : binfile.items ) {
@@ -292,7 +337,7 @@ void MyArea::on_width_changed() {
     if( !gTypes.get_active_text().size() )
         return;
 
-    int itemid = atol( gTypes.get_active_text().c_str() );
+    int itemid = itemTextToID( gTypes.get_active_text().c_str() );
     auto &item = binfile.items[ itemid ];
     str = gPosX.get_text().c_str();
     item.posx = str.toLong();
@@ -304,34 +349,31 @@ void MyArea::on_height_changed() {
     if( !gTypes.get_active_text().size() )
         return;
 
-    int itemid = atol( gTypes.get_active_text().c_str() );
+    int itemid = itemTextToID( gTypes.get_active_text().c_str() );
     auto &item = binfile.items[ itemid ];
     str = gPosY.get_text().c_str();
     item.posy = str.toLong();
 };
 
 ///////////////////////////////////////
-void MyArea::on_shift_changed() {
-///////////////////////////////////////
-    str = gShift.get_text().c_str();
-    shift = str.toLong();
-};
-
-///////////////////////////////////////
 void MyArea::on_mouse_moved( mousePosition pos ) {
 ///////////////////////////////////////
     if( buttonPressed ) {
-        shift += mousePressPosition.y - pos.y;
+        if( gTypes.get_active_text().size() || preview ) {
+            resetShift();
+        } else {
+            shift += mousePressPosition.y - pos.y;
 
-        if( shift > binfile.maxheight - widget_height )
-            shift = binfile.maxheight - widget_height;
+            if( shift > binfile.maxheight - widget_height )
+                shift = binfile.maxheight - widget_height;
 
-        if( shift < 0 )
-            shift = 0;
+            if( shift < 0 )
+                shift = 0;
 
-        str.format( "%ld", shift );
-        gShift.set_text( str.c_str() );
-        mousePressPosition = pos;
+            str.format( "%ld", shift );
+            gShift.set_text( str.c_str() );
+            mousePressPosition = pos;
+        }
     }
 };
 
@@ -358,12 +400,13 @@ void MyArea::on_types_changed() {
     if( !gTypes.get_active_text().size() )
         return;
 
-    int itemid = atol( gTypes.get_active_text().c_str() );
+    int itemid = itemTextToID( gTypes.get_active_text().c_str() );
     auto &item = binfile.items[ itemid ];
     str.format( "%ld", item.posx );
     gPosX.set_text( str.c_str() );
     str.format( "%ld", item.posy );
     gPosY.set_text( str.c_str() );
+    resetShift();
 }
 
 ///////////////////////////////////////
@@ -372,12 +415,12 @@ void MyArea::on_add_clicked() {
     if( !gNewTypes.get_active_text().size() )
         return;
 
-    int itemid = atol( gNewTypes.get_active_text().c_str() );
+    int itemid = itemTextToID( gNewTypes.get_active_text().c_str() );
     imgitem item;
     item.type = itemid;
     item.width = 16;
     item.height = 16;
-    item.imgcount = defimgcount[ itemid ];
+    item.imgcount = itemparams[ itemid ].defimgcount;
     binfile.items.insert(pair<int, imgitem>( itemid, item ));
     updateTypes();
 }
@@ -388,7 +431,7 @@ void MyArea::on_del_clicked() {
     if( !gTypes.get_active_text().size() )
         return;
 
-    int itemid = atol( gTypes.get_active_text().c_str() );
+    int itemid = itemTextToID( gTypes.get_active_text().c_str() );
     binfile.items.erase( itemid );
     updateTypes();
 }
