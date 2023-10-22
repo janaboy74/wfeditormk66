@@ -155,13 +155,13 @@ bool MyArea::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
     if( binfile.items.size() ) {
         if( preview ) {
             time_t rawtime;
-            struct tm timeinfo;
+            struct tm *timeinfo;
             corestring clock;
 
             text_ypos = text_height * 1.4;
             time( &rawtime );
 
-            localtime_r( &rawtime, &timeinfo );
+            timeinfo = localtime( &rawtime );
 
             corestring output;
             int xpos = 0;
@@ -186,9 +186,9 @@ bool MyArea::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
                     if ( 8 == id  )
                         pos = 4;
                     else if ( 12 == id  )
-                        pos = timeinfo.tm_mon + 12;
+                        pos = timeinfo->tm_mon + 12;
                     else if ( 15 == id  )
-                        pos = timeinfo.tm_wday + 7;
+                        pos = timeinfo->tm_wday + 7;
                     else if ( 20 == id  )
                         pos = 5;
                     else if ( 23 == id || 26 == id || 31 == id )
@@ -234,15 +234,15 @@ bool MyArea::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
                         output.format( "%02ld", id );
                     } else {
                         if( 4 == id )
-                            output.format( "%02ld", timeinfo.tm_hour );
+                            output.format( "%02ld", timeinfo->tm_hour );
                         else if ( 5 == id  )
-                            output.format( "%02ld", timeinfo.tm_min );
+                            output.format( "%02ld", timeinfo->tm_min );
                         else if ( 6 == id  )
-                            output.format( "%02ld", timeinfo.tm_sec );
+                            output.format( "%02ld", timeinfo->tm_sec );
                         else if ( 11 == id  )
-                            output.format( "%02ld", timeinfo.tm_mon + 1 );
+                            output.format( "%02ld", timeinfo->tm_mon + 1 );
                         else if ( 13 == id  )
-                            output.format( "%02ld", timeinfo.tm_mday );
+                            output.format( "%02ld", timeinfo->tm_mday );
                         else if ( 19 == id  )
                             output.format( "%02ld", 80 );
                         else if ( 21 == id  )
@@ -250,7 +250,7 @@ bool MyArea::on_draw(const Cairo::RefPtr<Cairo::Context>& cr) {
                         else if ( 25 == id  )
                             output.format( "%02ld", 2345 );
                         else if ( 27 == id  )
-                            output.format( "%04ld", timeinfo.tm_year + 1900 );
+                            output.format( "%04ld", timeinfo->tm_year + 1900 );
                         else if ( 30 == id  )
                             output.format( "%02ld", 345 );
                         else if ( 33 == id  )

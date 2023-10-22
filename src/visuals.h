@@ -10,6 +10,10 @@ using namespace Glib;
 using namespace Gtk;
 using namespace std;
 
+#ifndef uint
+typedef unsigned int uint;
+#endif
+
 struct mousePosition {
     double                              x;
     double                              y;

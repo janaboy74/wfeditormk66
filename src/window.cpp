@@ -8,7 +8,11 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
     free( buffer );
     folder += "/Watchfaces/";
 
+#ifdef linux
     mkdir( folder.c_str(), 0777 );
+#else
+    mkdir( folder.c_str() );
+#endif
 
     DIR *dir = opendir( folder.c_str() );
     struct dirent *dp;
@@ -83,26 +87,28 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
     signal_key_press_event().connect([&](GdkEventKey* event)->bool {
         if( GDK_KEY_Escape == event->keyval )
             close();
-        if( GDK_KEY_q == event->keyval ) {
-            if( --filepos < 0 )
-                filepos = filenames.size() - 1;
+        if( filenames.size() ) {
+            if( GDK_KEY_q == event->keyval ) {
+                if( --filepos < 0 )
+                    filepos = filenames.size() - 1;
 
-            if( ( int ) filenames.size() > filepos ) {
-                corestring file;
-                file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
-                ReadFile( file.c_str() );
-                drawArea.resetShift();
+                if( ( int ) filenames.size() > filepos ) {
+                    corestring file;
+                    file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
+                    ReadFile( file.c_str() );
+                    drawArea.resetShift();
+                }
             }
-        }
-        if( GDK_KEY_w == event->keyval ) {
-            if( ++filepos >= ( int ) filenames.size() )
-                filepos = 0;
+            if( GDK_KEY_w == event->keyval ) {
+                if( ++filepos >= ( int ) filenames.size() )
+                    filepos = 0;
 
-            if( ( int ) filenames.size() > filepos ) {
-                corestring file;
-                file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
-                ReadFile( file.c_str() );
-                drawArea.resetShift();
+                if( ( int ) filenames.size() > filepos ) {
+                    corestring file;
+                    file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
+                    ReadFile( file.c_str() );
+                    drawArea.resetShift();
+                }
             }
         }
         if( GDK_KEY_s == event->keyval ) {
@@ -120,9 +126,9 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
             drawArea.preview = false;
             drawArea.gTypes.set_active_text("");
         }
-        if( GDK_KEY_0 < event->keyval || GDK_KEY_9 > event->keyval ) {
+        if(( GDK_KEY_0 > event->keyval || GDK_KEY_9 < event->keyval ) && GDK_KEY_Left != event->keyval && GDK_KEY_Right != event->keyval &&
+             GDK_KEY_BackSpace != event->keyval && GDK_KEY_Delete != event->keyval && GDK_KEY_End != event->keyval && GDK_KEY_Home != event->keyval ) {
             if( get_focus() == &drawArea.gPosX || get_focus() == &drawArea.gPosY ) {
-                drawArea.gShift.grab_focus();
                 return true;
             }
         }

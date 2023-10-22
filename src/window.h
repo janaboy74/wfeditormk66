@@ -4,6 +4,14 @@
 #include <gtkmm.h>
 #include <gtkmm/application.h>
 #include "visuals.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <limits.h>
+#include <unistd.h>
 
 using namespace Glib;
 using namespace Gtk;
