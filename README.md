@@ -1,7 +1,8 @@
 # Watchface editor for MK66
 
 This project is a Watchface editor for MK66.
-- The project uses gtkmm and it tested only under linux.
+- The project uses gtkmm and now it comes with binary for Linux and Windows.
+- This software comes with no warranty. Use it at own risk.
 - The project is in beta state.
 - It can be compiled using cmake or CodeBlocks.
 
