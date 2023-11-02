@@ -1,5 +1,7 @@
 # Watchface editor for MK66
 
+![image](https://github.com/janaboy74/wfeditormk66/assets/54952408/f9b74273-6cd8-4427-b086-459cfb1435c8)
+
 This project is a Watchface editor for MK66.
 - The project uses gtkmm and now it comes with binary for Linux and Windows.
 - This software comes with no warranty. Use it at own risk.
