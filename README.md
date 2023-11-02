@@ -8,16 +8,45 @@ This project is a Watchface editor for MK66.
 - It can be compiled using cmake or CodeBlocks.
 
 ## Usage
+Menu:
+| Item | Description |
+| :---: | :---: |
+| Load bin | Load the watch face bin file |
+| Sace bin | Save the watch face bin file |
+| Quit | Quit application |
+| About | About the program |
+
+Toolbar #1:
+| Item | Description |
+| :---: | :---: |
+| Item Types | Watchface item types |
+| Load | Load the item png file |
+| Sace | Save the item png file |
+| New Item Types | New watchface item types |
+| Add | Add new watchface item type |
+| Del | Delete old watchface item type |
+| X pos | X position of the item |
+| Y Pos | Y position of the item |
+| Shift | Item list vertical shift |
+
+Toolbar #2:
+| Item | Description |
+| :---: | :---: |
+| Delta height | Delta height for item images |
+| Add height | Add the delta height for item images |
+| Default value | Default value for the item preview |
+
 Keys:
 | Key | Description |
-| :---:   | :---: |
+| :---: | :---: |
 | Esc | Quit |
 | F1 | Preview |
 | F2 | Show details |
 | q | Previous file in the Watchfaces subfolder. |
 | w | Next file in the Watchfaces subfolder. |
-| s | Save preview file. |
+| c | Create preview file. |
 | d | Switch debug mode( the preview contains IDs instead of test values ). |
+
 
 ---
 János
