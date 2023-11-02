@@ -30,7 +30,7 @@ void corestring::formatva( const char *format, va_list &arg_list ) {
     if( format ) {
         va_list cova;
         va_copy( cova, arg_list );
-        int size = vsnprintf( NULL, 0, format, cova );
+        int size = vsnprintf( nullptr, 0, format, cova );
         va_end( arg_list );
         resize( size );
         va_copy( cova, arg_list );
@@ -75,12 +75,14 @@ corestring::operator const char *() {
 RefPtr<Gdk::Pixbuf> image::getFromMemory( const unsigned char *file_buffer, int w, int h ) {
 ///////////////////////////////////////
     img.reset();
-    img = Gdk::Pixbuf::create_from_data((const guint8 *) file_buffer, Gdk::Colorspace::COLORSPACE_RGB, true, 8, w, h, w * 4 );
+    imgbuff.resize( w * h );
+    memcpy( imgbuff.data(), file_buffer, w * h * 4 );
+    img = Gdk::Pixbuf::create_from_data(( const guint8 * ) imgbuff.data(), Gdk::Colorspace::COLORSPACE_RGB, true, 8, w, h, w * 4 );
     return img;
 }
 
 ///////////////////////////////////////
-unsigned int crc32b(unsigned char *message, int len) {
+unsigned int crc32b( unsigned char *message, int len ) {
 ///////////////////////////////////////
     int i, j;
     unsigned int byte, crc, mask;
@@ -89,12 +91,12 @@ unsigned int crc32b(unsigned char *message, int len) {
     crc = 0xFFFFFFFF;
 
     for( i = 0; i < len ; ++i) {
-        byte = message[i];            // Get next byte.
+        byte = message[ i ];            // Get next byte.
         crc = crc ^ byte;
 
-        for (j = 7; j >= 0; j--) {    // Do eight times.
-            mask = -(crc & 1);
-            crc = (crc >> 1) ^ (0xEDB88320 & mask);
+        for( j = 7; j >= 0; j-- ) {     // Do eight times.
+            mask = -( crc & 1 );
+            crc = ( crc >> 1 ) ^ ( 0xEDB88320 & mask );
         }
     }
 

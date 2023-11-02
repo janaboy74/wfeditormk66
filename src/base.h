@@ -23,11 +23,11 @@ struct corestring : public string {
 };
 
 struct image {
-    vector<unsigned char> imgbuff;
+    vector<unsigned int> imgbuff;
     RefPtr<Gdk::Pixbuf> img;
     RefPtr<Gdk::Pixbuf> getFromMemory( const unsigned char *file_buffer, int w, int h );
 };
 
-unsigned int                            crc32b(unsigned char *message, int len);
+unsigned int                            crc32b( unsigned char *message, int len );
 
 #endif // BASE_H_INCLUDED

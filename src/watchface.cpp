@@ -16,6 +16,7 @@ item::item() {
     posy = 0;
     dummy1 = 0;
     imgcount = 0;
+    memset(( void * ) &alphakey, 0, sizeof( alphakey ));
     dummy3 = 0;
 }
 
@@ -36,7 +37,7 @@ void item::operator = ( const item &other ) {
     posy = other.posy;
     dummy1 = other.dummy1;
     imgcount = other.imgcount;
-    memcpy( &dummy2, other.dummy2, sizeof( dummy2 ));
+    memcpy(( void * ) &alphakey, ( void * ) &other.alphakey, sizeof( alphakey ));
     dummy3 = other.dummy3;
 }
 
@@ -47,12 +48,12 @@ imgitem::imgitem():item() {
 }
 
 ///////////////////////////////////////
-imgitem::imgitem( const item &other ) : item( other ), count(0), orig(0), rgb32(0) {
+imgitem::imgitem( const item &other ) : item( other ), count( 0 ), orig( 0 ), RGB32( 0 ) {
 ///////////////////////////////////////
 }
 
 ///////////////////////////////////////
-imgitem::imgitem( const imgitem &other ) : item( other ), count(other.count), orig(other.orig), rgb32(other.rgb32) {
+imgitem::imgitem( const imgitem &other ) : item( other ), count( other.count ), orig( other.orig ), RGB32( other.RGB32 ) {
 ///////////////////////////////////////
 }
 
@@ -62,17 +63,17 @@ void imgitem::operator = ( const imgitem &other ) {
     item::operator = ( other );
     count = other.count;
     orig = other.orig;
-    rgb32 = other.rgb32;
+    RGB32 = other.RGB32;
 }
 
 ///////////////////////////////////////
-void imgitem::toorig() {
+void imgitem::toOrig() {
 ///////////////////////////////////////
-    orig = shared_ptr<unsigned short[]>(new unsigned short[count]);
+    orig = shared_ptr<unsigned short[]>( new unsigned short[ count ]);
 
     for( size_t i = 0; i < count; ++i ) {
-        unsigned int color32 = rgb32[ i ];
-        unsigned char *cols = (unsigned char *)&color32;
+        unsigned int color32 = RGB32[ i ];
+        unsigned char *cols = ( unsigned char * ) &color32;
         unsigned int r = ( cols[0] >> 3 ) & 0x1f;
         unsigned int g = ( cols[1] >> 3 ) & 0x1f;
         unsigned int b = ( cols[2] >> 3 ) & 0x1f;
@@ -85,20 +86,22 @@ void imgitem::toorig() {
 }
 
 ///////////////////////////////////////
-void imgitem::torgb32() {
+void imgitem::toRGB32() {
 ///////////////////////////////////////
-    rgb32 = shared_ptr<unsigned int[]>(new unsigned int[count]);
+    RGB32 = shared_ptr<unsigned int[]>( new unsigned int[ count ]);
 
     for( size_t i = 0; i < count; ++i ) {
         unsigned short origcolor = orig[ i ];
         unsigned char *swp = ( unsigned char * ) &origcolor, tmp = swp[ 0 ];
         swp[ 0 ] = swp[ 1 ];
         swp[ 1 ] = tmp;
-        unsigned int r = ((origcolor >> 11 ) & 0x1f ) << 3;
-        unsigned int g = ((origcolor >> 6 ) & 0x1f ) << 3;
-        unsigned int b = ((origcolor >> 0 ) & 0x1f ) << 3;
-        unsigned int a = r+g+b ? 0xff : 0x00;
-        unsigned char *cols = (unsigned char *)&rgb32[ i ];
+        unsigned int r = (( origcolor >> 11 ) & 0x1f ) << 3;
+        unsigned int g = (( origcolor >> 6 ) & 0x1f ) << 3;
+        unsigned int b = (( origcolor >> 0 ) & 0x1f ) << 3;
+        unsigned int a = 0xff;
+        if( alphakey.r == r && alphakey.g == g && alphakey.b == b )
+            a = 0x00;
+        unsigned char *cols = ( unsigned char * ) &RGB32[ i ];
         cols[ 0 ] = r;
         cols[ 1 ] = g;
         cols[ 2 ] = b;
@@ -107,13 +110,13 @@ void imgitem::torgb32() {
 }
 
 ///////////////////////////////////////
-watchface::watchface() : maxheight( 0 ) {}
+watchface::watchface() : maxHeight( 0 ) {}
 ///////////////////////////////////////
 
 ///////////////////////////////////////
 bool watchface::hasitem( int itemid ) {
 ///////////////////////////////////////
-    return items.find( itemid ) != items.end();
+    return mapcontains( items, itemid );
 }
 
 ///////////////////////////////////////
@@ -121,13 +124,15 @@ bool watchface::readFile( const char *filename ) {
 ///////////////////////////////////////
     struct stat st;
     int fd = ::open( filename, O_RDONLY );
+    if( fd < 0 )
+        return false;
     fstat( fd, &st );
     size = st.st_size;
     buffer = shared_ptr<unsigned char[]>( new unsigned char[ size ]);
     size_t readBytes = read( fd, buffer.get(), size );
     close( fd );
     bool result = ( readBytes == size );
-    curfilename = filename;
+    curFilename = filename;
     parse();
     return result;
 }
@@ -151,7 +156,7 @@ void watchface::writeFile( const char * filename ) {
     size_t writepos = 0;
 
     for( auto &itm : items ) {
-        memcpy( writebuff.get() + writepos, (item*)&itm.second, sizeof( item ));
+        memcpy( writebuff.get() + writepos, ( item* ) &itm.second, sizeof( item ));
         writepos += sizeof( item );
     }
 
@@ -175,7 +180,7 @@ void watchface::parse() {
 ///////////////////////////////////////
     unsigned char *start = ( unsigned char * ) buffer.get();
     hdr = *( header * ) start;
-    item *tmp = (item *) ( start + sizeof( header ) );
+    item *tmp = ( item * ) ( start + sizeof( header ));
     items.clear();
 
     for( ; tmp->type; ++tmp ) {
@@ -188,16 +193,16 @@ void watchface::parse() {
         items.insert(pair<int, imgitem>( tmp->type, *tmp ));
     }
 
-    int shift = ((unsigned char*)tmp) - start;
-    maxheight = 0;
-    unsigned char *data = (unsigned char *)tmp;
+    unsigned char *data = ( unsigned char * ) tmp;
+    int shift = data - start;
+    maxHeight = 0;
 
     for( auto &item : items ) {
         item.second.pos = ( item.second.pos - shift );
-        maxheight += item.second.height;
+        maxHeight += item.second.height;
         item.second.count = item.second.width * item.second.height * item.second.imgcount;
-        item.second.orig = shared_ptr<unsigned short[]>(new unsigned short[item.second.count]);
+        item.second.orig = shared_ptr<unsigned short[]>( new unsigned short[ item.second.count ]);
         memcpy( item.second.orig.get(), data + item.second.pos, item.second.count * 2 );
-        item.second.torgb32();
+        item.second.toRGB32();
     }
 }

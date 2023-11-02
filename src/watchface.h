@@ -6,8 +6,16 @@
 
 using namespace std;
 
+#define mapcontains( mapinst, id ) ( mapinst.find( id ) != mapinst.end() )
+
 #pragma pack( push )
 #pragma pack( 1 )
+
+struct rgbColor {
+    unsigned char                       r;
+    unsigned char                       g;
+    unsigned char                       b;
+};
 
 struct header {
     unsigned int                        d1;
@@ -15,11 +23,7 @@ struct header {
     unsigned int                        crc32b;
     unsigned short                      w;
     unsigned short                      h;
-    unsigned char                       p1;
-    unsigned char                       p2;
-    unsigned char                       p3;
-    unsigned char                       p4;
-    unsigned int                        ffff;
+    int64_t                             filler;
 };
 
 struct item {
@@ -31,17 +35,11 @@ struct item {
     unsigned short                      posy;
     unsigned short                      dummy1;
     unsigned char                       imgcount;
-    unsigned char                       dummy2[3];
+    rgbColor                            alphakey;
     unsigned int                        dummy3;
     /* constructor */                   item();
     /* constructor */                   item( const item &other );
     void operator = ( const item &other );
-};
-
-struct rgbColor {
-    unsigned char                       r;
-    unsigned char                       g;
-    unsigned char                       b;
 };
 
 #pragma pack( pop )
@@ -49,13 +47,13 @@ struct rgbColor {
 struct imgitem : public item {
     size_t                              count;
     shared_ptr<unsigned short[]>        orig;
-    shared_ptr<unsigned int[]>          rgb32;
+    shared_ptr<unsigned int[]>          RGB32;
     /* constructor */                   imgitem();
     /* constructor */                   imgitem( const item &other );
     /* constructor */                   imgitem( const imgitem &other );
     void                                operator = ( const imgitem &other );
-    void                                toorig();
-    void                                torgb32();
+    void                                toOrig();
+    void                                toRGB32();
 };
 
 struct watchface {
@@ -63,8 +61,8 @@ struct watchface {
     shared_ptr<unsigned char[]>         buffer;
     map<int, imgitem>                   items;
     header                              hdr;
-    int                                 maxheight;
-    corestring                          curfilename;
+    int                                 maxHeight;
+    corestring                          curFilename;
     /* constructor */                   watchface();
     bool                                hasitem( int itemid );
     virtual bool                        readFile( const char *filename );
