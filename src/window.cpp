@@ -66,11 +66,13 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
     gHBox2.add( drawArea.gHeightFrame );
     drawArea.gAddHeight.set_label( "add height" );
     gHBox2.add( drawArea.gAddHeight );
-    gHBox2.add( drawArea.gDefvalue );
+    drawArea.gDefValueText.set_label( "default value" );
+    gHBox2.add( drawArea.gDefValueText );
+    gHBox2.add( drawArea.gDefValue );
     drawArea.gCopyImage.set_label( "copy image" );
     gHBox2.add( drawArea.gCopyImage );
     drawArea.gAddHeight.signal_clicked().connect( sigc::mem_fun( drawArea, &MyArea::on_add_height_clicked ));
-    drawArea.gDefvalue.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_def_value_changed ));
+    drawArea.gDefValue.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_def_value_changed ));
     drawArea.gCopyImage.signal_clicked().connect( sigc::mem_fun( drawArea, &MyArea::on_copy_image_clicked ));
     gVBox.add( gHBox2 );
     gVBox.add( drawArea );
@@ -116,7 +118,7 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
         if(( GDK_KEY_0 > event->keyval || GDK_KEY_9 < event->keyval ) && GDK_KEY_Left != event->keyval && GDK_KEY_Right != event->keyval &&
              GDK_KEY_BackSpace != event->keyval && GDK_KEY_Delete != event->keyval && GDK_KEY_End != event->keyval && GDK_KEY_Home != event->keyval &&
              ( get_focus() != &drawArea.gHeightFrame || GDK_KEY_minus != event->keyval )) {
-            if( dynamic_cast<Gtk::Entry*>( get_focus() )) {
+            if( dynamic_cast<Gtk::Entry*>( get_focus() ) && get_focus() != &drawArea.gDefValue ) {
                 return true;
             }
         }

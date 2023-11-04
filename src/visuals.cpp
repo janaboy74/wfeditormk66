@@ -322,7 +322,7 @@ void MyArea::initFields() {
     resetShift();
     gTypes.set_active_text("");
     gNewTypes.set_active_text("");
-    gDefvalue.set_text("");
+    gDefValue.set_text("");
     gPosX.set_text("");
     gPosY.set_text("");
     grab_focus();
@@ -677,7 +677,7 @@ void MyArea::on_def_value_changed() {
 
     int itemid = itemTextToID( gTypes.get_active_text().c_str() );
     if( mapcontains( defaults, itemid )) {
-        defaults[ itemid ] = gDefvalue.get_text().c_str();
+        defaults[ itemid ] = gDefValue.get_text().c_str();
     }
 }
 
@@ -727,7 +727,7 @@ void MyArea::on_types_changed() {
     str.format( "%ld", item.posy );
     gPosY.set_text( str.c_str() );
     if( mapcontains( defaults, itemid )) {
-        gDefvalue.set_text( defaults[ itemid ]);
+        gDefValue.set_text( defaults[ itemid ]);
     }
     gCopyImage.set_active( item.copyImage );
     resetShift();

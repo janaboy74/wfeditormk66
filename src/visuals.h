@@ -80,7 +80,8 @@ public:
     Button                              gAdd, gDel;
     Entry                               gHeightFrame;
     Button                              gAddHeight;
-    Entry                               gDefvalue;
+    Label                               gDefValueText;
+    Entry                               gDefValue;
     ComboBoxText                        gTypes, gNewTypes;
     CheckButton                         gCopyImage;
     image                               mask;
