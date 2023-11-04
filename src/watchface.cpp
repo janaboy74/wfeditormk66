@@ -6,6 +6,39 @@
 #include <unistd.h>
 
 ///////////////////////////////////////
+RGBColor::RGBColor( unsigned char r, unsigned char g, unsigned char b ) {
+///////////////////////////////////////
+    this->r = r;
+    this->g = g;
+    this->b = b;
+}
+
+///////////////////////////////////////
+unsigned short RGBColor::toPacked() const {
+///////////////////////////////////////
+    unsigned short origcolor = (( r >> 3 & 0x1f ) << 11 ) | (( g >> 3 & 0x1f ) << 6 ) | ( b >> 3 & 0x1f );
+    unsigned char *color = ( unsigned char * ) &origcolor;
+    swap( color[ 0 ], color[ 1 ]);
+    return origcolor;
+}
+
+///////////////////////////////////////
+void RGBColor::fromPacked( unsigned short packedColor ) {
+///////////////////////////////////////
+    unsigned char *color = ( unsigned char * ) &packedColor;
+    swap( color[ 0 ], color[ 1 ]);
+    r = (( packedColor >> 11 ) & 0x1f ) << 3;
+    g = (( packedColor >> 6 ) & 0x1f ) << 3;
+    b = (( packedColor >> 0 ) & 0x1f ) << 3;
+}
+
+///////////////////////////////////////
+bool RGBColor::isBlack() const {
+///////////////////////////////////////
+    return !( r + g + b );
+}
+
+///////////////////////////////////////
 item::item() {
 ///////////////////////////////////////
     type = 0;
@@ -15,8 +48,9 @@ item::item() {
     posx = 0;
     posy = 0;
     dummy1 = 0;
-    imgcount = 0;
-    memset(( void * ) &alphakey, 0, sizeof( alphakey ));
+    imgCount = 0;
+    copyImage = 0;
+    dummy2 = 0;
     dummy3 = 0;
 }
 
@@ -36,8 +70,9 @@ void item::operator = ( const item &other ) {
     posx = other.posx;
     posy = other.posy;
     dummy1 = other.dummy1;
-    imgcount = other.imgcount;
-    memcpy(( void * ) &alphakey, ( void * ) &other.alphakey, sizeof( alphakey ));
+    imgCount = other.imgCount;
+    copyImage = other.copyImage;
+    dummy2 = other.dummy2;
     dummy3 = other.dummy3;
 }
 
@@ -73,14 +108,8 @@ void imgitem::toOrig() {
 
     for( size_t i = 0; i < count; ++i ) {
         unsigned int color32 = RGB32[ i ];
-        unsigned char *cols = ( unsigned char * ) &color32;
-        unsigned int r = ( cols[0] >> 3 ) & 0x1f;
-        unsigned int g = ( cols[1] >> 3 ) & 0x1f;
-        unsigned int b = ( cols[2] >> 3 ) & 0x1f;
-        unsigned short origcolor = ( r << 11 ) | ( g << 6 ) | b;
-        unsigned char *swp = ( unsigned char * ) &origcolor, tmp = swp[ 0 ];
-        swp[ 0 ] = swp[ 1 ];
-        swp[ 1 ] = tmp;
+        const RGBColor &color = *( RGBColor *) &color32;
+        unsigned short origcolor = color.toPacked();
         orig[ i ] = origcolor;
     }
 }
@@ -91,21 +120,24 @@ void imgitem::toRGB32() {
     RGB32 = shared_ptr<unsigned int[]>( new unsigned int[ count ]);
 
     for( size_t i = 0; i < count; ++i ) {
-        unsigned short origcolor = orig[ i ];
-        unsigned char *swp = ( unsigned char * ) &origcolor, tmp = swp[ 0 ];
-        swp[ 0 ] = swp[ 1 ];
-        swp[ 1 ] = tmp;
-        unsigned int r = (( origcolor >> 11 ) & 0x1f ) << 3;
-        unsigned int g = (( origcolor >> 6 ) & 0x1f ) << 3;
-        unsigned int b = (( origcolor >> 0 ) & 0x1f ) << 3;
-        unsigned int a = 0xff;
-        if( alphakey.r == r && alphakey.g == g && alphakey.b == b )
-            a = 0x00;
+        RGBColor color;
+        color.fromPacked( orig[ i ]);
         unsigned char *cols = ( unsigned char * ) &RGB32[ i ];
-        cols[ 0 ] = r;
-        cols[ 1 ] = g;
-        cols[ 2 ] = b;
-        cols[ 3 ] = a;
+        cols[ 0 ] = color.r;
+        cols[ 1 ] = color.g;
+        cols[ 2 ] = color.b;
+        cols[ 3 ] = ( copyImage || !color.isBlack() ) ? 0xff : 0x00;
+    }
+}
+
+///////////////////////////////////////
+void imgitem::updateAlpha() {
+///////////////////////////////////////
+    for( size_t i = 0; i < count; ++i ) {
+        RGBColor color;
+        color.fromPacked( orig[ i ]);
+        unsigned char *cols = ( unsigned char * ) &RGB32[ i ];
+        cols[ 3 ] = ( copyImage || !color.isBlack() ) ? 0xff : 0x00;
     }
 }
 
@@ -146,7 +178,7 @@ void watchface::writeFile( const char * filename ) {
 
     for( auto &itm : items ) {
         itm.second.pos = pos;
-        pos += itm.second.width * itm.second.height * itm.second.imgcount * 2;
+        pos += itm.second.width * itm.second.height * itm.second.imgCount * 2;
     }
 
     int fd = ::open( filename, O_CREAT | O_TRUNC | O_WRONLY, 0777 );
@@ -164,7 +196,7 @@ void watchface::writeFile( const char * filename ) {
     writepos += sizeof( short );
 
     for( auto &itm : items ) {
-        int sz = itm.second.width * itm.second.height * itm.second.imgcount * 2;
+        int sz = itm.second.width * itm.second.height * itm.second.imgCount * 2;
         memcpy( writebuff.get() + writepos, itm.second.orig.get(), sz );
         writepos += sz;
     }
@@ -185,24 +217,33 @@ void watchface::parse() {
 
     for( ; tmp->type; ++tmp ) {
         if( tmp->type == 13 )
-            tmp->imgcount = 14;
+            tmp->imgCount = 14;
 
         if( tmp->type == 24 )
-            tmp->imgcount = 8;
+            tmp->imgCount = 8;
 
         items.insert(pair<int, imgitem>( tmp->type, *tmp ));
     }
 
     unsigned char *data = ( unsigned char * ) tmp;
     int shift = data - start;
-    maxHeight = 0;
 
     for( auto &item : items ) {
         item.second.pos = ( item.second.pos - shift );
-        maxHeight += item.second.height;
-        item.second.count = item.second.width * item.second.height * item.second.imgcount;
+        item.second.count = item.second.width * item.second.height * item.second.imgCount;
         item.second.orig = shared_ptr<unsigned short[]>( new unsigned short[ item.second.count ]);
         memcpy( item.second.orig.get(), data + item.second.pos, item.second.count * 2 );
         item.second.toRGB32();
+    }
+    updateMaxHeight();
+}
+
+///////////////////////////////////////
+void watchface::updateMaxHeight() {
+///////////////////////////////////////
+    maxHeight = 0;
+
+    for( auto &item : items ) {
+        maxHeight += item.second.height;
     }
 }

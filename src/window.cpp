@@ -1,7 +1,7 @@
 #include "window.h"
 
 ///////////////////////////////////////
-MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIENTATION_HORIZONTAL ) {
+MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIENTATION_HORIZONTAL ), gHBox2( ORIENTATION_HORIZONTAL ) {
 ///////////////////////////////////////
     auto buffer = getcwd( nullptr, 0 );
     folder = buffer;
@@ -31,9 +31,6 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
         readFile( file.c_str() );
     }
     set_default_size( 1000, 800 );
-    auto css_provider = CssProvider::create();
-    css_provider->load_from_data( "* { background-image: none; background-color: #000000;}" );
-    get_style_context()->add_provider( css_provider, GTK_STYLE_PROVIDER_PRIORITY_USER );
     add( gVBox );
     gHBox.add( drawArea.gTypes );
     drawArea.gLoad.set_label( "load" );
@@ -50,13 +47,19 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
     drawArea.gTypes.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_types_changed ));
     drawArea.gAdd.signal_clicked().connect( sigc::mem_fun( drawArea, &MyArea::on_add_clicked ));
     drawArea.gDel.signal_clicked().connect( sigc::mem_fun( drawArea, &MyArea::on_del_clicked ));
+    drawArea.set_can_focus();
 
+    drawArea.gXText.set_label( "X" );
+    gHBox.add( drawArea.gXText );
     gHBox.add( drawArea.gPosX );
+    drawArea.gYText.set_label( "Y" );
+    gHBox.add( drawArea.gYText );
     gHBox.add( drawArea.gPosY );
-    gHBox.add( drawArea.gShift );
     drawArea.gPosX.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_width_changed ));
     drawArea.gPosY.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_height_changed ));
 
+    gHBox.set_halign( Gtk::Align::ALIGN_START );
+    gHBox2.set_halign( Gtk::Align::ALIGN_START );
     drawArea.set_vexpand( true );
     gVBox.add( gHBox );
     drawArea.gHeightFrame.set_text( "0" );
@@ -64,37 +67,18 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
     drawArea.gAddHeight.set_label( "add height" );
     gHBox2.add( drawArea.gAddHeight );
     gHBox2.add( drawArea.gDefvalue );
+    drawArea.gCopyImage.set_label( "copy image" );
+    gHBox2.add( drawArea.gCopyImage );
     drawArea.gAddHeight.signal_clicked().connect( sigc::mem_fun( drawArea, &MyArea::on_add_height_clicked ));
     drawArea.gDefvalue.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_def_value_changed ));
+    drawArea.gCopyImage.signal_clicked().connect( sigc::mem_fun( drawArea, &MyArea::on_copy_image_clicked ));
     gVBox.add( gHBox2 );
     gVBox.add( drawArea );
     signal_timeout().connect( sigc::mem_fun( drawArea, &MyArea::on_timeout), 20 );
     drawArea.signal_draw().connect( sigc::mem_fun( drawArea, &MyArea::on_draw ));
     show_all_children();
-    signal_motion_notify_event().connect([&]( GdkEventMotion* event )->bool {
-        mousePosition mp;
-        mp.x = event->x;
-        mp.y = event->y;
-        drawArea.on_mouse_moved( mp );
-        return false;
-    }, false );
-    signal_button_press_event().connect([&]( GdkEventButton* event )->bool {
-        mousePosition mp;
-        mp.x = event->x;
-        mp.y = event->y;
-        drawArea.on_mouse_pressed( event->button, mp );
-        return false;
-    }, false );
-    signal_button_release_event().connect([&]( GdkEventButton* event )->bool {
-        mousePosition mp;
-        mp.x = event->x;
-        mp.y = event->y;
-        drawArea.on_mouse_released( event->button, mp );
-        return false;
-    }, false );
+    drawArea.grab_focus();
     signal_key_press_event().connect([&]( GdkEventKey* event )->bool {
-        if( GDK_KEY_Escape == event->keyval )
-            close();
         if( filenames.size() ) {
             if( GDK_KEY_q == event->keyval ) {
                 if( --filepos < 0 )
@@ -111,7 +95,7 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
                 if( ++filepos >= ( int ) filenames.size() )
                     filepos = 0;
 
-                if( ( int ) filenames.size() > filepos ) {
+                if(( int ) filenames.size() > filepos ) {
                     corestring file;
                     file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str() );
                     readFile( file.c_str() );
@@ -119,33 +103,25 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
                 }
             }
         }
-        if( GDK_KEY_c == event->keyval ) {
-            drawArea.createPreview();
-        }
-        if( GDK_KEY_d == event->keyval ) {
-            drawArea.debug = !drawArea.debug;
-        }
+        if( GDK_KEY_Escape == event->keyval )
+            drawArea.initFields();
         if( GDK_KEY_F1 == event->keyval ) {
             drawArea.preview = true;
-            drawArea.resetShift();
-            drawArea.gTypes.set_active_text("");
-            drawArea.gNewTypes.set_active_text("");
+            drawArea.initFields();
         }
         if( GDK_KEY_F2 == event->keyval ) {
             drawArea.preview = false;
-            drawArea.resetShift();
-            drawArea.gTypes.set_active_text("");
-            drawArea.gNewTypes.set_active_text("");
+            drawArea.initFields();
         }
         if(( GDK_KEY_0 > event->keyval || GDK_KEY_9 < event->keyval ) && GDK_KEY_Left != event->keyval && GDK_KEY_Right != event->keyval &&
              GDK_KEY_BackSpace != event->keyval && GDK_KEY_Delete != event->keyval && GDK_KEY_End != event->keyval && GDK_KEY_Home != event->keyval &&
              ( get_focus() != &drawArea.gHeightFrame || GDK_KEY_minus != event->keyval )) {
-            if( get_focus() == &drawArea.gPosX || get_focus() == &drawArea.gPosY || get_focus() == &drawArea.gHeightFrame ) {
+            if( dynamic_cast<Gtk::Entry*>( get_focus() )) {
                 return true;
             }
         }
         return false;
-    }, false);
+    }, false );
 };
 
 ///////////////////////////////////////
@@ -222,8 +198,8 @@ void MyWindow::on_image_load_clicked() {
         auto image = Gdk::Pixbuf::create_from_file( filename.c_str() );
         auto &destination = drawArea.binfile.items[ itemid ];
         destination.width = image->get_width();
-        destination.height = image->get_height() / destination.imgcount;
-        destination.count = destination.width * destination.height * destination.imgcount;
+        destination.height = image->get_height() / destination.imgCount;
+        destination.count = destination.width * destination.height * destination.imgCount;
         destination.RGB32 = shared_ptr<unsigned int[]>( new unsigned int[ destination.count ]);
         if( image->get_has_alpha() ) {
             memcpy( destination.RGB32.get(), image->get_pixels(), destination.count * 4 );
@@ -231,9 +207,9 @@ void MyWindow::on_image_load_clicked() {
             unsigned char *rgbCols = ( unsigned char * ) image->get_pixels();
             int rowstride = image->get_rowstride();
             unsigned char *destCols = ( unsigned char * ) destination.RGB32.get();
-            for( size_t y = 0; y < destination.height * destination.imgcount; ++y ) {
+            for( size_t y = 0; y < destination.height * destination.imgCount; ++y ) {
                 for( size_t x = 0; x < destination.width; ++x ) {
-                    rgbColor &rgbs = *( rgbColor * ) &rgbCols[ rowstride * y + x * sizeof( rgbColor )];
+                    RGBColor &rgbs = *( RGBColor * ) &rgbCols[ rowstride * y + x * sizeof( RGBColor )];
                     auto cols = &destCols[( destination.width * y + x ) * 4 ];
                     cols[ 0 ] = rgbs.r;
                     cols[ 1 ] = rgbs.g;
@@ -244,6 +220,7 @@ void MyWindow::on_image_load_clicked() {
         }
         destination.toOrig();
         destination.toRGB32();
+        drawArea.binfile.updateMaxHeight();
     }
 };
 
@@ -259,7 +236,7 @@ void MyWindow::on_image_save_clicked() {
 
     if( filename.size() ) {
         auto &item = drawArea.binfile.items[ itemid ];
-        drawArea.view.getFromMemory(( unsigned char * ) item.RGB32.get(), item.width, item.height * item.imgcount );
+        drawArea.view.getFromMemory(( unsigned char * ) item.RGB32.get(), item.width, item.height * item.imgCount );
         drawArea.view.img->save( filename, "png" );
     }
 };
@@ -277,6 +254,17 @@ void MyWindow::on_bin_file_load() {
 ///////////////////////////////////////
 void MyWindow::on_bin_file_save() {
 ///////////////////////////////////////
+    ustring filename = getFilenameDialog( "Please choose a file", FILE_CHOOSER_ACTION_SAVE, "bin" );
+
+    if( filename.size() ) {
+        saveFile( filename );
+    }
+}
+
+///////////////////////////////////////
+void MyWindow::on_bin_file_save_with_preview() {
+///////////////////////////////////////
+    drawArea.createPreview();
     ustring filename = getFilenameDialog( "Please choose a file", FILE_CHOOSER_ACTION_SAVE, "bin" );
 
     if( filename.size() ) {
@@ -334,59 +322,29 @@ void ExampleApplication::on_activate() {
     myWindow->signal_hide().connect( sigc::mem_fun( *this, &ExampleApplication::on_window_hide ));
     add_action( "load", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_load ));
     add_action( "save", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_save ));
+    add_action( "save_with_preview", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_save_with_preview ));
     add_action( "quit", sigc::mem_fun( *this, &ExampleApplication::on_menu_file_quit ));
+    show_checkboard_action = add_action_bool( "show_checkboard", sigc::mem_fun( *this, &ExampleApplication::on_show_checkboard_clicked ));
     add_action( "about", sigc::mem_fun( *this, &ExampleApplication::on_menu_help_about ));
 
-    refBuilder = Builder::create();
+    auto app_menu = Gio::Menu::create();
+    auto file = Gio::Menu::create();
+    app_menu->append_submenu( "_File", file );
+    file->append("_Load bin", "app.load");
+    file->append("_Save bin", "app.save");
+    file->append("Save bin with &preview", "app.save_with_preview" );
+    file->append("_Quit", "app.quit");
+    auto options = Gio::Menu::create();
+    app_menu->append_submenu( "_Options", options );
+    auto show_checkboard = Gio::MenuItem::create( "Sho_w checkboard", "app.show_checkboard" );
+    options->append_item( show_checkboard );
+    auto help = Gio::Menu::create();
+    app_menu->append_submenu( "_Help", help );
+    help->append("_About", "app.about");
+    show_checkboard_action->set_enabled();
 
-    ustring ui_info =
-        "<interface>"
-        "  <!-- menubar -->"
-        "  <menu id='menu-example'>"
-        "    <submenu>"
-        "      <attribute name='label' translatable='yes'>_File</attribute>"
-        "      <section>"
-        "        <item>"
-        "          <attribute name='label' translatable='yes'>Load bin</attribute>"
-        "          <attribute name='action'>app.load</attribute>"
-        "          <attribute name='accel'>&lt;Primary&gt;n</attribute>"
-        "        </item>"
-        "        <item>"
-        "          <attribute name='label' translatable='yes'>Save bin</attribute>"
-        "          <attribute name='action'>app.save</attribute>"
-        "          <attribute name='accel'>&lt;Primary&gt;n</attribute>"
-        "        </item>"
-        "      </section>"
-        "      <section>"
-        "        <item>"
-        "          <attribute name='label' translatable='yes'>_Quit</attribute>"
-        "          <attribute name='action'>app.quit</attribute>"
-        "          <attribute name='accel'>&lt;Primary&gt;q</attribute>"
-        "        </item>"
-        "      </section>"
-        "    </submenu>"
-        "    <submenu>"
-        "      <attribute name='label' translatable='yes'>_Help</attribute>"
-        "      <section>"
-        "        <item>"
-        "          <attribute name='label' translatable='yes'>_About</attribute>"
-        "          <attribute name='action'>app.about</attribute>"
-        "        </item>"
-        "      </section>"
-        "    </submenu>"
-        "  </menu>"
-        "</interface>";
+    set_menubar( app_menu );
 
-    refBuilder->add_from_string( ui_info );
-
-    auto object = refBuilder->get_object( "menu-example" );
-    auto gmenu = RefPtr<Gio::Menu>::cast_dynamic( object );
-
-    if ( !gmenu ) {
-        g_warning( "GMenu not found" );
-    } else {
-        set_menubar( gmenu );
-    }
     myWindow->show_all();
 }
 
@@ -394,7 +352,6 @@ void ExampleApplication::on_activate() {
 void ExampleApplication::on_window_hide() {
 ///////////////////////////////////////
     auto window = myWindow.release(); ( void ) window;
-    auto builder = refBuilder.release(); ( void ) builder;
 }
 
 ///////////////////////////////////////
@@ -404,6 +361,15 @@ void ExampleApplication::on_menu_file_quit() {
 
     if ( windows.size() > 0 )
         windows[0]->hide();
+}
+
+///////////////////////////////////////
+void ExampleApplication::on_show_checkboard_clicked() {
+///////////////////////////////////////
+    show_checkboard_action->get_state( myWindow->drawArea.showCheckboard );
+    myWindow->drawArea.showCheckboard = !myWindow->drawArea.showCheckboard;
+    auto newState = Glib::Variant<bool>::create( myWindow->drawArea.showCheckboard );
+    show_checkboard_action->set_state( newState );
 }
 
 ///////////////////////////////////////

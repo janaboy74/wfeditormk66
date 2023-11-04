@@ -30,6 +30,7 @@ public:
     void                                on_image_save_clicked();
     void                                on_bin_file_load();
     void                                on_bin_file_save();
+    void                                on_bin_file_save_with_preview();
     void                                readFile( ustring filename );
     void                                saveFile( ustring filename );
     Box                                 gVBox, gHBox, gHBox2;
@@ -52,9 +53,10 @@ private:
     void                                on_window_hide();
     void                                on_menu_file_quit();
     void                                on_menu_help_about();
+    void                                on_show_checkboard_clicked();
 
-    RefPtr<Builder>                     refBuilder;
     RefPtr<MyWindow>                    myWindow;
+    Glib::RefPtr<Gio::SimpleAction>     show_checkboard_action;
 };
 
 #endif // WINDOW_H_INCLUDED

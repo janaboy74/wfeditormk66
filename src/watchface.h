@@ -11,10 +11,14 @@ using namespace std;
 #pragma pack( push )
 #pragma pack( 1 )
 
-struct rgbColor {
+struct RGBColor {
     unsigned char                       r;
     unsigned char                       g;
     unsigned char                       b;
+    /* constructor */                   RGBColor( unsigned char r = 0, unsigned char g = 0, unsigned char b = 0 );
+    unsigned short                      toPacked() const;
+    void                                fromPacked( unsigned short packedColor );
+    bool                                isBlack() const;
 };
 
 struct header {
@@ -34,8 +38,9 @@ struct item {
     unsigned short                      posx;
     unsigned short                      posy;
     unsigned short                      dummy1;
-    unsigned char                       imgcount;
-    rgbColor                            alphakey;
+    unsigned char                       imgCount;
+    unsigned char                       copyImage;
+    unsigned short                      dummy2;
     unsigned int                        dummy3;
     /* constructor */                   item();
     /* constructor */                   item( const item &other );
@@ -54,6 +59,7 @@ struct imgitem : public item {
     void                                operator = ( const imgitem &other );
     void                                toOrig();
     void                                toRGB32();
+    void                                updateAlpha();
 };
 
 struct watchface {
@@ -68,6 +74,7 @@ struct watchface {
     virtual bool                        readFile( const char *filename );
     void                                writeFile( const char * filename );
     void                                parse();
+    void                                updateMaxHeight();
 };
 
 #endif // WATCHFACE_H_INCLUDED

@@ -16,19 +16,24 @@ using namespace std::chrono;
 typedef unsigned int uint;
 #endif
 
-struct mousePosition {
+struct Point {
     double                              x;
     double                              y;
+    /* constructor */                   Point( double x = 0, double y = 0 );
+    /* constructor */                   Point( const Point &other );
+    Point &operator                     = ( const Point &delta );
+    Point operator                      - ( const Point &delta );
+    Point operator                      + ( const Point &delta );
+    double                              dist() const;
 };
 
 extern map<char, int>                   chrtopos;
 extern vector<int>                      format;
 extern vector<int>                      imgs;
-extern map<int, int>                    defimgcount;
 
-class MyArea : public Layout {
+class MyArea : public DrawingArea {
     int                                 posX, posY;
-    mousePosition                       mousePressPosition;
+    Point                               pressPosition;
     bool                                buttonPressed;
     int                                 widgetWidth;
     int                                 widgetHeight;
@@ -43,35 +48,44 @@ public:
     void                                createPreview();
     corestring                          getDefault( int id );
     int                                 itemTextToID( const char *name );
+    void                                limitShift();
     void                                resetShift();
+    void                                initFields();
     void                                renderPreview( const Cairo::RefPtr<::Cairo::Context>& cr );
     bool                                on_draw( const Cairo::RefPtr<::Cairo::Context>& cr );
     void                                on_width_changed();
     void                                on_height_changed();
     void                                on_def_value_changed();
-    void                                on_mouse_moved( mousePosition pos );
-    void                                on_mouse_pressed( uint button, mousePosition pos );
-    void                                on_mouse_released( uint button, mousePosition pos );
+    void                                on_mouse_moved( const Point &pos );
+    void                                on_mouse_pressed( uint button, const Point &pos );
+    void                                on_mouse_released( uint button, const Point &pos );
     void                                on_types_changed();
     void                                on_add_clicked();
     void                                on_del_clicked();
     void                                on_add_height_clicked();
+    void                                on_copy_image_clicked();
     bool                                on_timeout();
+    int                                 watchfaceWidth;
+    int                                 watchfaceHeight;
     int                                 shift;
     bool                                preview;
     bool                                debug;
     watchface                           binfile;
     image                               view;
+    Label                               gXText;
+    Label                               gYText;
     Entry                               gPosX;
     Entry                               gPosY;
-    Label                               gShift;
     Button                              gLoad, gSave;
     Button                              gAdd, gDel;
     Entry                               gHeightFrame;
     Button                              gAddHeight;
     Entry                               gDefvalue;
     ComboBoxText                        gTypes, gNewTypes;
+    CheckButton                         gCopyImage;
     image                               mask;
+    image                               background;
+    bool                                showCheckboard;
 };
 
 #endif // VISUALS_H_INCLUDED

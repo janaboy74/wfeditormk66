@@ -1,17 +1,14 @@
 #include "visuals.h"
 
 struct itemParams {
-    int defimgcount;
+    int defImgCount;
     const char *name;
     bool formatted;
 };
 
-int watchface_width = 240;
-int watchface_height = 280;
-
 map<char, int> chrtopos= {{ '-', 0 },{ '.', 1 },{ '/', 2 },{ '0', 3 },{ '1', 4 },{ '2', 5 },{ '3', 6 },{ '4', 7 },{ '5', 8 },{ '6', 9 },{ '7', 10 },{ '8', 11 },{ '9', 12 },{ ':', 13 }};
-map<int, corestring> defaults = {{ 1, "hour" },{ 2, "minute" },{ 3, "second" },{ 4, "hour" },{ 5, "minute" },{ 6, "second" },{ 11, "month" },{ 13, "day" },{ 19, "80" },{ 21, "20" },
-                                { 25, "2345" },{ 27, "year" },{ 30, "345" },{ 33, "60" },{ 47, "4320" }};
+map<int, corestring> defaults = {{ 1, "hour" },{ 2, "minute" },{ 3, "second" },{ 4, "hour" },{ 5, "minute" },{ 6, "second" },{ 11, "month" },{ 13, "day" },{ 15, "weekday" },{ 19, "80" },
+                                { 21, "20" },{ 25, "2345" },{ 27, "year" },{ 30, "345" },{ 33, "60" },{ 47, "4320" }};
 map<int, itemParams> itemparams= {{ 1, { 1, "hour-hand-image", false }}, { 2, { 1, "minute-hand-image", false }}, { 3, { 1, "second-hand-image", false }}, { 4, { 14, "hour-digit-text", true }},
     { 5, { 14, "minute-digit-text", true }}, { 6, { 14, "second-digit-text", true }}, { 8, { 5, "battery-indicator-image", false }}, { 9, { 2,"conntection-indicator-image", false }},
     { 10, { 1, "preview-image", false }}, { 11, { 14, "month-text", true }}, { 12, { 24, "month-names-image", false }}, { 13, { 14, "day-text", true }}, { 14, { 1, "month-day-separator", false }},
@@ -22,41 +19,120 @@ map<int, itemParams> itemparams= {{ 1, { 1, "hour-hand-image", false }}, { 2, { 
 };
 
 ///////////////////////////////////////
-MyArea::MyArea() : posX( 0 ), posY( 0 ), buttonPressed( false ), shift( 0 ), preview( true ), debug( false ) {
+Point::Point( double x, double y ) {
 ///////////////////////////////////////
-    int pixelcount = watchface_width * watchface_height;
+    this->x = x;
+    this->y = y;
+}
+
+///////////////////////////////////////
+Point::Point( const Point &other ) {
+///////////////////////////////////////
+    x = other.x;
+    y = other.y;
+}
+
+///////////////////////////////////////
+Point &Point::operator = ( const Point &delta ) {
+///////////////////////////////////////
+    x = delta.x;
+    y = delta.y;
+    return *this;
+}
+
+///////////////////////////////////////
+Point Point::operator - ( const Point &delta ) {
+///////////////////////////////////////
+    Point mp;
+    mp.x = x - delta.x;
+    mp.y = y - delta.y;
+    return mp;
+}
+
+///////////////////////////////////////
+Point Point::operator + ( const Point &delta ) {
+///////////////////////////////////////
+    Point mp;
+    mp.x = x + delta.x;
+    mp.y = y + delta.y;
+    return mp;
+}
+
+///////////////////////////////////////
+double Point::dist() const {
+///////////////////////////////////////
+    return sqrt( x * x + y * y );
+}
+
+///////////////////////////////////////
+MyArea::MyArea() : posX( 0 ), posY( 0 ), buttonPressed( false ), watchfaceWidth( 240 ), watchfaceHeight( 280 ), shift( 0 ), preview( true ), debug( false ), showCheckboard( false ) {
+///////////////////////////////////////
+    int pixelcount = watchfaceWidth * watchfaceHeight;
     mask.imgbuff.resize( pixelcount * 4 );
+    background.imgbuff.resize( pixelcount * 4 );
     unsigned int *pixels = ( unsigned int * ) mask.imgbuff.data();
     memset( pixels, 0, pixelcount * 4 );
     int rounding = 54;
-    const int halfx = watchface_width / 2;
-    const int halfy = watchface_height / 2;
-    for( int y = 0; y < watchface_height; ++y ) {
+    const int halfx = watchfaceWidth / 2;
+    const int halfy = watchfaceHeight / 2;
+    for( int y = 0; y < watchfaceHeight; ++y ) {
         int dy = y - halfy;
         if( dy < 0 )
             ++dy;
         dy = fabs( dy );
         int ry = dy + rounding - halfy;
-        for( int x = 0; x < watchface_width; ++x ) {
+        for( int x = 0; x < watchfaceWidth; ++x ) {
             int dx = x - halfx;
             if( dx < 0 )
                 ++dx;
             dx = fabs( dx );
             int rx = dx + rounding - halfx;
             bool draw = ( int ) sqrt( rx * rx + ry * ry ) > rounding - 1 && rx * dx > 0 && ry * dy > 0 ;
-            pixels[ x + y * watchface_width ] = draw ? 0xff000000 : 0x00000000;
+            pixels[ x + y * watchfaceWidth ] = draw ? 0xff000000 : 0x00000000;
         }
     }
-    mask.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) pixels, Gdk::COLORSPACE_RGB, true, 8, watchface_width, watchface_height, watchface_width * 4 );
+    mask.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) pixels, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
+    unsigned int *bgpixels = ( unsigned int * ) background.imgbuff.data();
+    for( int i = 0; i < watchfaceHeight * watchfaceWidth; ++i ) {
+        bgpixels[ i ] = pixels[ i ] ? 0x00000000 : 0xff000000;
+    }
+    background.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) bgpixels, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
+
+    add_events( Gdk::KEY_PRESS_MASK | Gdk::POINTER_MOTION_MASK | Gdk::BUTTON_PRESS_MASK  | Gdk::BUTTON_RELEASE_MASK );
+    signal_motion_notify_event().connect([&]( GdkEventMotion* event )->bool {
+        Point mp;
+        mp.x = event->x;
+        mp.y = event->y;
+        on_mouse_moved( mp );
+        return false;
+    }, false );
+    signal_button_press_event().connect([&]( GdkEventButton* event )->bool {
+        Point mp;
+        mp.x = event->x;
+        mp.y = event->y;
+        on_mouse_pressed( event->button, mp );
+        return false;
+    }, false );
+    signal_button_release_event().connect([&]( GdkEventButton* event )->bool {
+        Point mp;
+        mp.x = event->x;
+        mp.y = event->y;
+        on_mouse_released( event->button, mp );
+        return false;
+    }, false );
+    signal_key_press_event().connect([&]( GdkEventKey* event )->bool {
+        if( GDK_KEY_c == event->keyval ) {
+            createPreview();
+        }
+        if( GDK_KEY_d == event->keyval ) {
+            debug = !debug;
+        }
+        return false;
+    }, false );
+
 
     signal_draw().connect( sigc::mem_fun( *this, &MyArea::on_draw ));
-    str.format( "%ld", posX );
-    gPosX.set_text( str.c_str() );
-    str.format( "%ld", posY );
-    gPosY.set_text( str.c_str() );
-    str.format( "%ld", shift );
-    gShift.set_text( str.c_str() );
-    gDefvalue.set_text( "" );
+    initFields();
     referenceTime = system_clock::now();
 };
 
@@ -88,17 +164,16 @@ void MyArea::updateTypes() {
         str.format( "%ld - %s", type.first, type.second.name );
         gNewTypes.append( str.c_str() );
     }
-    gPosX.set_text("0");
-    gPosY.set_text("0");
-    gDefvalue.set_text("");
+    initFields();
+    binfile.updateMaxHeight();
 }
 
 ///////////////////////////////////////
 void MyArea::setup( const char * filename ) {
 ///////////////////////////////////////
     binfile.readFile( filename );
-    watchface_width = binfile.hdr.w;
-    watchface_height = binfile.hdr.h;
+    watchfaceWidth = binfile.hdr.w;
+    watchfaceHeight = binfile.hdr.h;
     updateTypes();
 }
 
@@ -113,7 +188,9 @@ void MyArea::createPreview() {
 ///////////////////////////////////////
     if( binfile.hasitem( 10 )) {
         auto &background = binfile.items[ 10 ];
-        Cairo::RefPtr<Cairo::ImageSurface> img = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, watchface_width, watchface_height );
+        background.imgCount = 1;
+        background.count = background.width * background.height * background.imgCount;
+        Cairo::RefPtr<Cairo::ImageSurface> img = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, watchfaceWidth, watchfaceHeight );
         Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create( img );
         cr->set_source_rgb( 0, 0, 0 );
         cr->rectangle( 0, 0, img->get_width(), img->get_height() );
@@ -177,6 +254,7 @@ void MyArea::createPreview() {
             }
         }
         background.toOrig();
+        background.updateAlpha();
     }
 }
 
@@ -185,7 +263,7 @@ corestring MyArea::getDefault( int id ) {
 ///////////////////////////////////////
     time_t rawtime;
     struct tm *timeinfo;
-    corestring def;
+    corestring def = "0";
 
     time( &rawtime );
     timeinfo = localtime( &rawtime );
@@ -204,6 +282,8 @@ corestring MyArea::getDefault( int id ) {
             def.format( "%ld", timeinfo->tm_mon + 1 );
         } else if( "day" == def ) {
             def.format( "%ld", timeinfo->tm_mday );
+        } else if( "weekday" == def ) {
+            def.format( "%ld", timeinfo->tm_wday );
         }
     }
     return def;
@@ -221,11 +301,32 @@ int MyArea::itemTextToID( const char *name ) {
 }
 
 ///////////////////////////////////////
+void MyArea::limitShift() {
+///////////////////////////////////////
+    if( shift > binfile.maxHeight - widgetHeight )
+        shift = binfile.maxHeight - widgetHeight;
+
+    if( shift < 0 )
+        shift = 0;
+}
+
+///////////////////////////////////////
 void MyArea::resetShift() {
 ///////////////////////////////////////
     shift = 0;
-    str.format( "%ld", shift );
-    gShift.set_text( str.c_str() );
+}
+
+///////////////////////////////////////
+void MyArea::initFields() {
+///////////////////////////////////////
+    resetShift();
+    gTypes.set_active_text("");
+    gNewTypes.set_active_text("");
+    gDefvalue.set_text("");
+    gPosX.set_text("");
+    gPosY.set_text("");
+    grab_focus();
+    gCopyImage.set_sensitive( false );
 }
 
 ///////////////////////////////////////
@@ -270,41 +371,21 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
                 if ( 19 == id  )
                     isize = 3;
                 else if ( 21 == id  )
-                    isize = 3;
+                    isize = 4;
                 else if ( 25 == id  )
                     isize = 5;
                 else if ( 30 == id  )
                     isize = 4;
                 else if ( 33 == id  )
-                    isize = 3;
+                    isize = 4;
                 else if ( 47 == id  )
                     isize = 5;
 
                 auto def = getDefault( id );
-                if( 4 == id )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 5 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 6 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 11 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 13 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 19 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 21 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 25 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 27 == id  )
-                    output.format( "%04ld", def.toLong() );
-                else if ( 30 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 33 == id  )
-                    output.format( "%02ld", def.toLong() );
-                else if ( 47 == id  )
+                if ( 47 == id  )
                     output.format( "%1.2f", def.toLong() * 1e-3f );
+                else if( mapcontains( defaults, id ))
+                    output.format( "%02ld", def.toLong() );
                 else
                     output.format( "%02ld", id );
 
@@ -328,22 +409,25 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
                     if( mapcontains( defaults, 33 )) {
                         int battery = defaults[ 33 ].toLong();
                         if( battery >= 0 && battery <= 100 )
-                            pos = ( item.imgcount * ( defaults[ 33 ].toLong() + 10 )) / 100;
-                        if( pos > ( item.imgcount - 1 ))
-                            pos = ( item.imgcount - 1 );
+                            pos = ( item.imgCount * ( defaults[ 33 ].toLong() + 5 )) / 100;
+                        if( pos > ( item.imgCount - 1 ))
+                            pos = ( item.imgCount - 1 );
                         if( pos < 0 )
                             pos = 0;
                     }
                 } else if ( 12 == id  )
                     pos = 12;
-                else if ( 15 == id  )
-                    pos = 7;
-                else if ( 20 == id  )
+                else if ( 15 == id  ) {
+                    pos = getDefault( 15 ).toLong();
+                    if( 7 <= pos || pos < 0 )
+                        pos = 0;
+                    pos += 7;
+                } else if ( 20 == id  )
                     pos = 5;
                 else if ( 23 == id || 26 == id || 31 == id )
                     pos = 1;
                 else if ( 16 == id || 48 == id )
-                    pos = item.imgcount == 2 ? 0 : 2;
+                    pos = ( item.imgCount == 2 ) ? 0 : 2;
                 else
                     pos = 0;
 
@@ -369,7 +453,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
             int shifty = 0;
             float rotateAngle = 0;
             shiftx = -item.width / 2;
-            shifty = - watchface_height / 2 + ( item.posy ? item.posy - item.height + item.width / 2 : 0 );
+            shifty = - watchfaceHeight / 2 + ( item.posy ? item.posy - item.height + item.width / 2 : 0 );
             int secs = hour * 3600l + minute * 60l + second * 1l;
             if( 1 == id )
                 rotateAngle = 360 * ( secs / 3600.f / 12.f );
@@ -379,7 +463,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
                 rotateAngle = 360 * secs / 60.f;
             view.getFromMemory(( unsigned char * ) item.RGB32.get(), item.width, item.height );
             cr->save();
-            cr->translate( watchface_width / 2, watchface_height / 2 );
+            cr->translate( watchfaceWidth / 2, watchfaceHeight / 2 );
             cr->rotate( rotateAngle * M_PI / 180 );
             cr->translate( shiftx, shifty );
             Gdk::Cairo::set_source_pixbuf( cr, view.img, 0, 0 );
@@ -394,7 +478,6 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
 ///////////////////////////////////////
 bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
 ///////////////////////////////////////
-
     cr->save();
 
     Allocation allocation = get_allocation();
@@ -403,39 +486,49 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
 
     Cairo::TextExtents te;
 
-    int font_size = 18;
-#if 0 // show checkboard;
-    cr->set_line_width( 0 );
-    int grid = 8;
-    int xx = widget_width / grid;
-    int xy = widget_height / grid;
-    int x = 0, y = 0;
+    limitShift();
 
-    for( ;; ) {
-        (( x + y ) & 1) ? cr->set_source_rgb( 0.2, 0.2, 0.2 ) : cr->set_source_rgb( 0, 0, 0.0 );
-        cr->rectangle( x * grid, y * grid, grid, grid );
+    if( showCheckboard ) {
+        cr->set_line_width( 0 );
+        int grid = 8;
+        int xx = widgetWidth / grid;
+        int xy = widgetHeight / grid + 2;
+        int x = 0, y = 0;
+
+        for( ;; ) {
+            (( x + y ) & 1) ? cr->set_source_rgb( 0.3, 0.3, 0.3 ) : cr->set_source_rgb( 0.0, 0.1, 0.3 );
+            cr->rectangle( x * grid, y * grid - shift % ( 2 * grid ), grid, grid );
+            cr->fill();
+            cr->stroke();
+            ++x;
+
+            if( x > xx ) {
+                x = 0;
+                ++y;
+
+                if( y > xy )
+                    break;
+            }
+        }
+    } else {
+        cr->set_source_rgb( 0, 0, 0.0 );
+        cr->rectangle( 0, 0, widgetWidth, widgetHeight );
         cr->fill();
         cr->stroke();
-        ++x;
-
-        if( x > xx ) {
-            x = 0;
-            ++y;
-
-            if( y > xy )
-                break;
-        }
     }
-
-#endif
-    cr->set_font_size( font_size );
-    cr->select_font_face( "Bitstream Vera Sans",Cairo::FontSlant::FONT_SLANT_NORMAL, Cairo::FontWeight::FONT_WEIGHT_BOLD );
+    cr->set_font_size( 18 );
+    cr->select_font_face( "Bitstream Vera Sans", Cairo::FontSlant::FONT_SLANT_NORMAL, Cairo::FontWeight::FONT_WEIGHT_BOLD );
     cr->set_source_rgb( 0.9, 0.9, 0.2 );
 
     corestring output;
 
     if( binfile.items.size() ) {
         if( preview ) {
+            cr->set_source_rgb( 0, 0, 0.0 );
+            cr->rectangle( 0, 0, watchfaceWidth , watchfaceHeight );
+            cr->fill();
+            cr->stroke();
+
             renderPreview( cr );
             if( gTypes.get_active_text().size() ) {
                 int id = itemTextToID( gTypes.get_active_text().c_str() );
@@ -443,34 +536,6 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
                     float ms = duration_cast<milliseconds>( system_clock::now() - referenceTime ).count();
                     int isize = 1;
                     int xpos = 1;
-
-                    corestring def = getDefault( id );
-                    if( 4 == id )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 5 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 6 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 11 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 13 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 19 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 21 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 25 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 27 == id  )
-                        output.format( "%04ld", def.toLong() );
-                    else if ( 30 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 33 == id  )
-                        output.format( "%02ld", def.toLong() );
-                    else if ( 47 == id  )
-                        output.format( "%1.2f", def.toLong() * 1e-3f );
-                    else
-                        output.format( "%02ld", id );
 
                     if ( 19 == id  )
                         isize = 3;
@@ -484,6 +549,16 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
                         isize = 3;
                     else if ( 47 == id  )
                         isize = 5;
+
+                    auto def = getDefault( id );
+
+                    if ( 47 == id  )
+                        output.format( "%1.2f", def.toLong() * 1e-3f );
+                    else if( mapcontains( defaults, id ))
+                        output.format( "%02ld", def.toLong() );
+                    else
+                        output.format( "%02ld", id );
+
                     cr->save();
                     cr->set_source_rgba( 1.0, 1.0, 1.0, 1 - fabs( sin( ms * 0.005f )));
                     cr->set_line_width( 1 );
@@ -520,8 +595,17 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
                 size_t x = 80;
                 pos = 0;
 
-                for( size_t i = 0; i < item.second.imgcount; ++i ) {
-                    str.format( "%ld - %ld", item.first, item.second.imgcount );
+                if( 10 == item.first || 17 == item.first ) {
+                    cr->save();
+                    Gdk::Cairo::set_source_pixbuf( cr, background.img, x, y - shift );
+                    cr->rectangle( 0, 0, background.img->get_width(), background.img->get_height() );
+                    cr->paint();
+                    cr->stroke();
+                    cr->restore();
+                }
+
+                for( size_t i = 0; i < item.second.imgCount; ++i ) {
+                    str.format( "%ld - %ld", item.first, item.second.imgCount );
                     cr->get_text_extents( str.c_str(), te );
                     cr->move_to( 0, y - shift + te.height );
                     cr->show_text( str.c_str() );
@@ -542,13 +626,20 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
 
                 y += h;
             }
+            cr->set_source_rgb( 0.9, 0.9, 0.2 );
+            if( gTypes.get_active_text().size() ) {
+                int itemid = itemTextToID( gTypes.get_active_text().c_str() );
+                auto &item = binfile.items[ itemid ];
+                str.format( "%04d x %04d x %d", item.width, item.height, item.imgCount );
+            } else {
+                str.format( "%04d", shift );
+            }
+            cr->get_text_extents( str.c_str(), te );
+            cr->move_to( widgetWidth - te.width - 5, widgetHeight - 5 );
+            cr->show_text( str.c_str() );
         }
     }
 
-    str.format( "%04x %04x %04x", posX, posY, shift );
-    cr->get_text_extents( str.c_str(), te );
-    cr->move_to( widgetWidth - te.width - 5, widgetHeight - 5 );
-    cr->show_text( str.c_str() );
 
     cr->restore();
     return true;
@@ -591,38 +682,31 @@ void MyArea::on_def_value_changed() {
 }
 
 ///////////////////////////////////////
-void MyArea::on_mouse_moved( mousePosition pos ) {
+void MyArea::on_mouse_moved( const Point &pos ) {
 ///////////////////////////////////////
     if( buttonPressed ) {
         if( gTypes.get_active_text().size() || preview ) {
             resetShift();
         } else {
-            shift += mousePressPosition.y - pos.y;
-
-            if( shift > binfile.maxHeight - widgetHeight )
-                shift = binfile.maxHeight - widgetHeight;
-
-            if( shift < 0 )
-                shift = 0;
-
-            str.format( "%ld", shift );
-            gShift.set_text( str.c_str() );
-            mousePressPosition = pos;
+            shift += pressPosition.y - pos.y;
+            limitShift();
+            pressPosition = pos;
         }
     }
 };
 
 ///////////////////////////////////////
-void MyArea::on_mouse_pressed( uint button, mousePosition pos ) {
+void MyArea::on_mouse_pressed( uint button, const Point &pos ) {
 ///////////////////////////////////////
     if( button & 1 ) {
-        mousePressPosition = pos;
+        pressPosition = pos;
         buttonPressed = true;
+        grab_focus();
     }
 };
 
 ///////////////////////////////////////
-void MyArea::on_mouse_released( uint button, mousePosition pos ) {
+void MyArea::on_mouse_released( uint button, const Point &pos ) {
 ///////////////////////////////////////
     if( button & 1 ) {
         buttonPressed = false;
@@ -632,6 +716,7 @@ void MyArea::on_mouse_released( uint button, mousePosition pos ) {
 ///////////////////////////////////////
 void MyArea::on_types_changed() {
 ///////////////////////////////////////
+    gCopyImage.set_sensitive( true );
     if( !gTypes.get_active_text().size() )
         return;
 
@@ -644,6 +729,7 @@ void MyArea::on_types_changed() {
     if( mapcontains( defaults, itemid )) {
         gDefvalue.set_text( defaults[ itemid ]);
     }
+    gCopyImage.set_active( item.copyImage );
     resetShift();
 }
 
@@ -658,7 +744,7 @@ void MyArea::on_add_clicked() {
     item.type = itemid;
     item.width = 16;
     item.height = 16;
-    item.imgcount = itemparams[ itemid ].defimgcount;
+    item.imgCount = itemparams[ itemid ].defImgCount;
     binfile.items.insert(pair<int, imgitem>( itemid, item ));
     updateTypes();
 }
@@ -691,10 +777,10 @@ void MyArea::on_add_height_clicked() {
         if( item.height + plusHeight < 0 )
             return;
         item.height += plusHeight;
-        item.count = item.width * item.height * item.imgcount;
+        item.count = item.width * item.height * item.imgCount;
 
         shared_ptr<unsigned int[]> newRGB32 = shared_ptr<unsigned int[]>( new unsigned int[ item.count ]);
-        for( int i = 0; i < item.imgcount; ++i ) {
+        for( int i = 0; i < item.imgCount; ++i ) {
             if( plusHeight < 0 ) {
                 memcpy( &newRGB32[ i * newItemSize ], &item.RGB32[ i * itemSize ], newItemSize * sizeof( int ));
             } else {
@@ -703,6 +789,22 @@ void MyArea::on_add_height_clicked() {
             }
         }
         item.RGB32 = newRGB32;
+    }
+}
+
+///////////////////////////////////////
+void MyArea::on_copy_image_clicked() {
+///////////////////////////////////////
+    if( !gTypes.get_active_text().size() ) {
+        gCopyImage.set_active( false );
+        return;
+    }
+
+    int itemid = itemTextToID( gTypes.get_active_text().c_str() );
+    if( binfile.hasitem( itemid )) {
+        auto &item = binfile.items[ itemid ];
+        item.copyImage = gCopyImage.get_active();
+        item.updateAlpha();
     }
 }
 
