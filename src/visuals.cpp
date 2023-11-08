@@ -192,11 +192,6 @@ void MyArea::createPreview() {
         background.count = background.width * background.height * background.imgCount;
         Cairo::RefPtr<Cairo::ImageSurface> img = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, watchfaceWidth, watchfaceHeight );
         Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create( img );
-        cr->set_source_rgb( 0, 0, 0 );
-        cr->rectangle( 0, 0, img->get_width(), img->get_height() );
-        cr->fill();
-        cr->set_antialias( Cairo::ANTIALIAS_NONE );
-        cr->set_source_rgb( 1, 1, 1 );
         cr->save();
         cr->scale( 1.f * ( img->get_width() - 40 ) / img->get_width(), 1.f * ( img->get_height() - 39 ) / img->get_height() );
         cr->translate( 25, 23 );
@@ -205,6 +200,10 @@ void MyArea::createPreview() {
         int rounding = 80;
         const int halfx = img->get_width() / 2;
         const int halfy = img->get_height() / 2;
+        int pixelcount = img->get_width() * img->get_height();
+        background.RGB32 = shared_ptr<unsigned int[]>( new unsigned int[ pixelcount ]);
+        auto source = img->get_data();
+        auto rgbcolor = background.RGB32.get();
         for( int y = 0; y < img->get_height(); ++y ) {
             int dy = y - halfy;
             if( dy < 0 )
@@ -236,21 +235,19 @@ void MyArea::createPreview() {
                         dist = 7.1;
                         round = 1 - dist / sqrt( rounding );
                     }
+                    unsigned int colorComp = 255 * round;
+                    if( round < 0 )
+                        colorComp = 0;
+                    *rgbcolor = 255 << 24 | colorComp << 16 | colorComp << 8 | colorComp;
                     cr->set_source_rgba( round, round, round, 1 );
                     cr->set_line_width( 1 );
                     cr->rectangle( x, y, 1.0, 1.0 );
                     cr->fill();
+                } else {
+                    *rgbcolor = 0xff << 24 | source[ 0 ] << 16 | source[ 1 ] << 8 | source[ 2 ];
                 }
-            }
-        }
-        int pixelcount = img->get_width() * img->get_height();
-        background.RGB32 = shared_ptr<unsigned int[]>( new unsigned int[ pixelcount ]);
-        auto source = img->get_data();
-        for( int y = 0; y < img->get_height(); ++y ) {
-            for( int x = 0; x < img->get_width(); ++x ) {
-                int pos = x + y * img->get_width();
-                auto color = &source[ pos * 4 ];
-                background.RGB32[ pos ] = 0xff << 24 | color[ 0 ] << 16 | color[ 1 ] << 8 | color[ 2 ];
+                source += 4;
+                ++rgbcolor;
             }
         }
         background.toOrig();
