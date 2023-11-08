@@ -41,7 +41,7 @@ Toolbar #2:
 Keys:
 | Key | Description |
 | :---: | :---: |
-| Esc | Quit |
+| Esc | Clear item parameters |
 | F1 | Preview |
 | F2 | Show details |
 | q | Previous file in the Watchfaces subfolder. |
