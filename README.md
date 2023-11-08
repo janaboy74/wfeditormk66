@@ -46,7 +46,7 @@ Keys:
 | F2 | Show details |
 | q | Previous file in the Watchfaces subfolder. |
 | w | Next file in the Watchfaces subfolder. |
-| c | Create preview file. |
+| c | Create preview image. |
 | d | Switch debug mode( the preview contains IDs instead of test values ). |
 
 
