@@ -41,14 +41,18 @@ Toolbar #2:
 Keys:
 | Key | Description |
 | :---: | :---: |
-| Esc | Quit |
+| Esc | Clear item parameters |
 | F1 | Preview |
 | F2 | Show details |
 | q | Previous file in the Watchfaces subfolder. |
 | w | Next file in the Watchfaces subfolder. |
-| c | Create preview file. |
+| c | Create preview image. |
 | d | Switch debug mode( the preview contains IDs instead of test values ). |
 
-
+---
+### Brief compilation instructions:
+- The compilation requires cmake and gtkmm3.
+- For windows I have used MSys: https://www.msys2.org
+- You need to install for both windows and for linux development packages as well.
 ---
 János
