@@ -5,6 +5,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#ifdef __linux
+#define O_BINARY 0
+#endif
+
 ///////////////////////////////////////
 RGBColor::RGBColor( unsigned char r, unsigned char g, unsigned char b ) {
 ///////////////////////////////////////
@@ -155,7 +159,7 @@ bool watchface::hasitem( int itemid ) {
 bool watchface::readFile( const char *filename ) {
 ///////////////////////////////////////
     struct stat st;
-    int fd = ::open( filename, O_RDONLY );
+    int fd = ::open( filename, O_RDONLY | O_BINARY );
     if( fd < 0 )
         return false;
     fstat( fd, &st );
@@ -181,7 +185,7 @@ void watchface::writeFile( const char * filename ) {
         pos += itm.second.width * itm.second.height * itm.second.imgCount * 2;
     }
 
-    int fd = ::open( filename, O_CREAT | O_TRUNC | O_WRONLY, 0777 );
+    int fd = ::open( filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0777 );
     hdr.datasize = pos - sizeof( header );
     shared_ptr<unsigned char[]> writebuff;
     writebuff = shared_ptr<unsigned char[]>( new unsigned char[ pos - sizeof( hdr )]);

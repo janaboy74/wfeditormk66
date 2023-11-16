@@ -239,10 +239,6 @@ void MyArea::createPreview() {
                     if( round < 0 )
                         colorComp = 0;
                     *rgbcolor = 255 << 24 | colorComp << 16 | colorComp << 8 | colorComp;
-                    cr->set_source_rgba( round, round, round, 1 );
-                    cr->set_line_width( 1 );
-                    cr->rectangle( x, y, 1.0, 1.0 );
-                    cr->fill();
                 } else {
                     *rgbcolor = 0xff << 24 | source[ 0 ] << 16 | source[ 1 ] << 8 | source[ 2 ];
                 }
