@@ -50,6 +50,22 @@ Keys:
 | d | Switch debug mode( the preview contains IDs instead of test values ). |
 
 ---
+### Upload the watchface
+#### Prerequisites for the android devices
+- Glory Fit
+- A file manager
+#### Steps
+- Download watchface(s) with Glory Fit.
+- Use the file manager to download the watchfaces /Android/data/com.yc.gloryfit/files in the Main Storage to your pc ( you need to add permissions for the file manager to the gloryfit folder ).
+- Edit the watchface with the editor.
+- Replace an existing watchface with the edited one.
+- Sync the watchface with the Glory Fit application.
+- Done.
+
+I have not found other way to upload custom watchface to the MK66.<br />
+If someone has a better solution please share it with me and I will publish it.
+
+---
 ### Brief compilation instructions:
 - The compilation requires cmake and gtkmm3.
 - For windows I have used MSys: https://www.msys2.org
