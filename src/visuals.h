@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <gtkmm.h>
+#include <gtkmm/window.h>
 #include <chrono>
 #include "watchface.h"
 
@@ -34,7 +35,6 @@ extern vector<int>                      imgs;
 class MyArea : public DrawingArea {
     int                                 posX, posY;
     Point                               pressPosition;
-    bool                                buttonPressed;
     int                                 widgetWidth;
     int                                 widgetHeight;
     corestring                          str;
@@ -53,12 +53,10 @@ public:
     void                                initFields();
     void                                renderPreview( const Cairo::RefPtr<::Cairo::Context>& cr );
     bool                                on_draw( const Cairo::RefPtr<::Cairo::Context>& cr );
-    void                                on_width_changed();
-    void                                on_height_changed();
+    void                                on_item_posX_changed();
+    void                                on_item_posY_changed();
     void                                on_def_value_changed();
-    void                                on_mouse_moved( const Point &pos );
-    void                                on_mouse_pressed( uint button, const Point &pos );
-    void                                on_mouse_released( uint button, const Point &pos );
+    bool                                on_custom_key_pressed( GdkEventKey* event, Gtk::Widget *focus );
     void                                on_types_changed();
     void                                on_add_clicked();
     void                                on_del_clicked();
@@ -70,12 +68,13 @@ public:
     int                                 shift;
     bool                                preview;
     bool                                debug;
+    uint                                button;
     watchface                           binfile;
     image                               view;
     Label                               gXText;
     Label                               gYText;
-    Entry                               gPosX;
-    Entry                               gPosY;
+    RefPtr<Gtk::Adjustment>             aPosX, aPosY;
+    SpinButton                          gPosXSpin, gPosYSpin;
     Button                              gLoad, gSave;
     Button                              gAdd, gDel;
     Entry                               gHeightFrame;
@@ -84,9 +83,8 @@ public:
     Entry                               gDefValue;
     ComboBoxText                        gTypes, gNewTypes;
     CheckButton                         gCopyImage;
-    image                               mask;
     image                               background;
-    bool                                showCheckboard;
+    bool                                showCheckerboard;
 };
 
 #endif // VISUALS_H_INCLUDED

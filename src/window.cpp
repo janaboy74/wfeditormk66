@@ -51,12 +51,10 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
 
     drawArea.gXText.set_label( "X" );
     gHBox.add( drawArea.gXText );
-    gHBox.add( drawArea.gPosX );
+    gHBox.add( drawArea.gPosXSpin );
     drawArea.gYText.set_label( "Y" );
     gHBox.add( drawArea.gYText );
-    gHBox.add( drawArea.gPosY );
-    drawArea.gPosX.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_width_changed ));
-    drawArea.gPosY.signal_changed().connect( sigc::mem_fun( drawArea, &MyArea::on_height_changed ));
+    gHBox.add( drawArea.gPosYSpin );
 
     gHBox.set_halign( Gtk::Align::ALIGN_START );
     gHBox2.set_halign( Gtk::Align::ALIGN_START );
@@ -115,14 +113,7 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
             drawArea.preview = false;
             drawArea.initFields();
         }
-        if(( GDK_KEY_0 > event->keyval || GDK_KEY_9 < event->keyval ) && GDK_KEY_Left != event->keyval && GDK_KEY_Right != event->keyval &&
-             GDK_KEY_BackSpace != event->keyval && GDK_KEY_Delete != event->keyval && GDK_KEY_End != event->keyval && GDK_KEY_Home != event->keyval &&
-             ( get_focus() != &drawArea.gHeightFrame || GDK_KEY_minus != event->keyval )) {
-            if( dynamic_cast<Gtk::Entry*>( get_focus() ) && get_focus() != &drawArea.gDefValue ) {
-                return true;
-            }
-        }
-        return false;
+        return drawArea.on_custom_key_pressed( event, get_focus() );
     }, false );
 };
 
@@ -326,7 +317,7 @@ void ExampleApplication::on_activate() {
     add_action( "save", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_save ));
     add_action( "save_with_preview", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_save_with_preview ));
     add_action( "quit", sigc::mem_fun( *this, &ExampleApplication::on_menu_file_quit ));
-    show_checkboard_action = add_action_bool( "show_checkboard", sigc::mem_fun( *this, &ExampleApplication::on_show_checkboard_clicked ));
+    show_checkerboard_action = add_action_bool( "show_checkerboard", sigc::mem_fun( *this, &ExampleApplication::on_show_checkerboard_clicked ));
     add_action( "about", sigc::mem_fun( *this, &ExampleApplication::on_menu_help_about ));
 
     auto app_menu = Gio::Menu::create();
@@ -338,12 +329,12 @@ void ExampleApplication::on_activate() {
     file->append("_Quit", "app.quit");
     auto options = Gio::Menu::create();
     app_menu->append_submenu( "_Options", options );
-    auto show_checkboard = Gio::MenuItem::create( "Sho_w checkboard", "app.show_checkboard" );
-    options->append_item( show_checkboard );
+    auto show_checkerboard = Gio::MenuItem::create( "Sho_w checkerboard", "app.show_checkerboard" );
+    options->append_item( show_checkerboard );
     auto help = Gio::Menu::create();
     app_menu->append_submenu( "_Help", help );
     help->append("_About", "app.about");
-    show_checkboard_action->set_enabled();
+    show_checkerboard_action->set_enabled();
 
     set_menubar( app_menu );
 
@@ -366,12 +357,12 @@ void ExampleApplication::on_menu_file_quit() {
 }
 
 ///////////////////////////////////////
-void ExampleApplication::on_show_checkboard_clicked() {
+void ExampleApplication::on_show_checkerboard_clicked() {
 ///////////////////////////////////////
-    show_checkboard_action->get_state( myWindow->drawArea.showCheckboard );
-    myWindow->drawArea.showCheckboard = !myWindow->drawArea.showCheckboard;
-    auto newState = Glib::Variant<bool>::create( myWindow->drawArea.showCheckboard );
-    show_checkboard_action->set_state( newState );
+    show_checkerboard_action->get_state( myWindow->drawArea.showCheckerboard );
+    myWindow->drawArea.showCheckerboard = !myWindow->drawArea.showCheckerboard;
+    auto newState = Glib::Variant<bool>::create( myWindow->drawArea.showCheckerboard );
+    show_checkerboard_action->set_state( newState );
 }
 
 ///////////////////////////////////////

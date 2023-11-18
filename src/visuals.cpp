@@ -65,12 +65,11 @@ double Point::dist() const {
 }
 
 ///////////////////////////////////////
-MyArea::MyArea() : posX( 0 ), posY( 0 ), buttonPressed( false ), watchfaceWidth( 240 ), watchfaceHeight( 280 ), shift( 0 ), preview( true ), debug( false ), showCheckboard( false ) {
+MyArea::MyArea() : posX( 0 ), posY( 0 ), watchfaceWidth( 240 ), watchfaceHeight( 280 ), shift( 0 ), preview( true ), debug( false ), button( 0 ), showCheckerboard( false ) {
 ///////////////////////////////////////
     int pixelcount = watchfaceWidth * watchfaceHeight;
-    mask.imgbuff.resize( pixelcount * 4 );
     background.imgbuff.resize( pixelcount * 4 );
-    unsigned int *pixels = ( unsigned int * ) mask.imgbuff.data();
+    unsigned int *pixels = ( unsigned int * ) background.imgbuff.data();
     memset( pixels, 0, pixelcount * 4 );
     int rounding = 54;
     const int halfx = watchfaceWidth / 2;
@@ -88,36 +87,67 @@ MyArea::MyArea() : posX( 0 ), posY( 0 ), buttonPressed( false ), watchfaceWidth(
             dx = fabs( dx );
             int rx = dx + rounding - halfx;
             bool draw = ( int ) sqrt( rx * rx + ry * ry ) > rounding - 1 && rx * dx > 0 && ry * dy > 0 ;
-            pixels[ x + y * watchfaceWidth ] = draw ? 0xff000000 : 0x00000000;
+            pixels[ x + y * watchfaceWidth ] = draw ? 0x00000000 : 0xff000000;
         }
     }
-    mask.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) pixels, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
-    unsigned int *bgpixels = ( unsigned int * ) background.imgbuff.data();
-    for( int i = 0; i < watchfaceHeight * watchfaceWidth; ++i ) {
-        bgpixels[ i ] = pixels[ i ] ? 0x00000000 : 0xff000000;
-    }
-    background.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) bgpixels, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
+    background.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) pixels, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
+    gPosXSpin.signal_changed().connect( sigc::mem_fun( this, &MyArea::on_item_posX_changed ));
+    gPosYSpin.signal_changed().connect( sigc::mem_fun( this, &MyArea::on_item_posY_changed ));
+
 
     add_events( Gdk::KEY_PRESS_MASK | Gdk::POINTER_MOTION_MASK | Gdk::BUTTON_PRESS_MASK  | Gdk::BUTTON_RELEASE_MASK );
     signal_motion_notify_event().connect([&]( GdkEventMotion* event )->bool {
-        Point mp;
-        mp.x = event->x;
-        mp.y = event->y;
-        on_mouse_moved( mp );
+        if( button & 1 ) {
+            Point pos;
+            pos.x = event->x;
+            pos.y = event->y;
+            if( gTypes.get_active_text().size() || preview ) {
+                if( gTypes.get_active_text().size() && ( event->state & GDK_SHIFT_MASK ) && preview ) {
+                    auto delta = pressPosition - pos;
+                    auto itemid = itemTextToID( gTypes.get_active_text().c_str() );
+                    auto &item = binfile.items[ itemid ];
+                    short x = item.posX - delta.x;
+                    short y = item.posY - delta.y;
+                    item.posX -= delta.x;
+                    item.posY -= delta.y;
+                    if( x < aPosX->get_lower() )
+                        x = aPosX->get_lower();
+                    if( x > aPosX->get_upper() )
+                        x = aPosX->get_upper();
+                    if( y < aPosY->get_lower() )
+                        y = aPosY->get_lower();
+                    if( y > aPosY->get_upper() )
+                        y = aPosY->get_upper();
+                    item.posX = x;
+                    item.posY = y;
+                    str.format( "%ld", item.posX );
+                    gPosXSpin.set_text( str.c_str() );
+                    gPosXSpin.set_value( item.posX );
+                    str.format( "%ld", item.posY );
+                    gPosYSpin.set_text( str.c_str() );
+                    gPosYSpin.set_value( item.posY );
+                    pressPosition = pos;
+                }
+                resetShift();
+            } else {
+                shift += pressPosition.y - pos.y;
+                limitShift();
+                pressPosition = pos;
+            }
+        }
         return false;
     }, false );
     signal_button_press_event().connect([&]( GdkEventButton* event )->bool {
-        Point mp;
-        mp.x = event->x;
-        mp.y = event->y;
-        on_mouse_pressed( event->button, mp );
+        button |= event->button;
+        pressPosition.x = event->x;
+        pressPosition.y = event->y;
+        grab_focus();
         return false;
     }, false );
     signal_button_release_event().connect([&]( GdkEventButton* event )->bool {
-        Point mp;
-        mp.x = event->x;
-        mp.y = event->y;
-        on_mouse_released( event->button, mp );
+        button &= ~event->button;
+        pressPosition.x = event->x;
+        pressPosition.y = event->y;
         return false;
     }, false );
     signal_key_press_event().connect([&]( GdkEventKey* event )->bool {
@@ -127,9 +157,24 @@ MyArea::MyArea() : posX( 0 ), posY( 0 ), buttonPressed( false ), watchfaceWidth(
         if( GDK_KEY_d == event->keyval ) {
             debug = !debug;
         }
+        if( GDK_KEY_Up == event->keyval ) {
+            gPosYSpin.spin( event->state & GDK_SHIFT_MASK ? Gtk::SPIN_PAGE_BACKWARD : Gtk::SPIN_STEP_BACKWARD, 1 );
+            return true;
+        }
+        if( GDK_KEY_Down == event->keyval ) {
+            gPosYSpin.spin( event->state & GDK_SHIFT_MASK ? Gtk::SPIN_PAGE_FORWARD : Gtk::SPIN_STEP_FORWARD, 1 );
+            return true;
+        }
+        if( GDK_KEY_Left == event->keyval ) {
+            gPosXSpin.spin( event->state & GDK_SHIFT_MASK ? Gtk::SPIN_PAGE_BACKWARD : Gtk::SPIN_STEP_BACKWARD, 1 );
+            return true;
+        }
+        if( GDK_KEY_Right == event->keyval ) {
+            gPosXSpin.spin( event->state & GDK_SHIFT_MASK ? Gtk::SPIN_PAGE_FORWARD : Gtk::SPIN_STEP_FORWARD, 1 );
+            return true;
+        }
         return false;
     }, false );
-
 
     signal_draw().connect( sigc::mem_fun( *this, &MyArea::on_draw ));
     initFields();
@@ -316,8 +361,8 @@ void MyArea::initFields() {
     gTypes.set_active_text("");
     gNewTypes.set_active_text("");
     gDefValue.set_text("");
-    gPosX.set_text("");
-    gPosY.set_text("");
+    gPosXSpin.set_text("");
+    gPosYSpin.set_text("");
     grab_focus();
     gCopyImage.set_sensitive( false );
 }
@@ -331,7 +376,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
     if( binfile.hasitem( 17 )) {
         auto &background = binfile.items[ 17 ];
         view.getFromMemory(( unsigned char * )background.RGB32.get(), background.width, background.height );
-        Gdk::Cairo::set_source_pixbuf( cr, view.img, background.posx, background.posy );
+        Gdk::Cairo::set_source_pixbuf( cr, view.img, background.posX, background.posY );
         cr->rectangle( 0, 0, view.img->get_width(), view.img->get_height() );
         cr->paint();
         cr->stroke();
@@ -352,14 +397,14 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
                 output.format( "%02ld", id );
                 cr->set_source_rgb( 1.0, 1.0, 1.0 );
                 cr->set_font_size( 13 );
-                cr->move_to( item.posx, item.posy + 13 );
+                cr->move_to( item.posX, item.posY + 13 );
                 cr->show_text( output.c_str() );
                 continue;
             }
 
             if( itemparam.formatted ) {
                 int isize = 0;
-                int xpos = 0;
+                int xPos = 0;
 
                 if ( 19 == id  )
                     isize = 3;
@@ -383,15 +428,15 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
                     output.format( "%02ld", id );
 
                 if( isize )
-                    xpos = ( isize - ( int ) output.length() ) * item.width * 0.5f;
+                    xPos = ( isize - ( int ) output.length() ) * item.width * 0.5f;
 
                 for( auto chr : output ) {
                     view.getFromMemory(( unsigned char * )( item.RGB32.get() + chrtopos[ chr ] * item.width * item.height ), item.width, item.height );
-                    Gdk::Cairo::set_source_pixbuf( cr, view.img, item.posx + xpos, item.posy );
+                    Gdk::Cairo::set_source_pixbuf( cr, view.img, item.posX + xPos, item.posY );
                     cr->rectangle( 0, 0, view.img->get_width(), view.img->get_height() );
                     cr->paint();
                     cr->stroke();
-                    xpos += item.width;
+                    xPos += item.width;
                 }
             } else {
                 int pos = 0;
@@ -426,7 +471,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
 
                 view.getFromMemory(( unsigned char * )( item.RGB32.get() + ( pos * item.width * item.height )), item.width, item.height );
                 cr->save();
-                cr->translate( item.posx, item.posy );
+                cr->translate( item.posX, item.posY );
                 Gdk::Cairo::set_source_pixbuf( cr, view.img, 0, 0 );
                 cr->rectangle( 0, 0, view.img->get_width(), view.img->get_height() );
                 cr->paint();
@@ -442,11 +487,11 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
             int minute = getDefault( 2 ).toLong();
             int second = getDefault( 3 ).toLong();
             auto &item = binfile.items[ id ];
-            int shiftx = 0;
-            int shifty = 0;
+            int shiftX = 0;
+            int shiftY = 0;
             float rotateAngle = 0;
-            shiftx = -item.width / 2;
-            shifty = - watchfaceHeight / 2 + ( item.posy ? item.posy - item.height + item.width / 2 : 0 );
+            shiftX = -item.width / 2;
+            shiftY = - watchfaceHeight / 2 + ( item.posY ? item.posY - item.height + item.width / 2 : 0 );
             int secs = hour * 3600l + minute * 60l + second * 1l;
             if( 1 == id )
                 rotateAngle = 360 * ( secs / 3600.f / 12.f );
@@ -458,7 +503,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
             cr->save();
             cr->translate( watchfaceWidth / 2, watchfaceHeight / 2 );
             cr->rotate( rotateAngle * M_PI / 180 );
-            cr->translate( shiftx, shifty );
+            cr->translate( shiftX, shiftY );
             Gdk::Cairo::set_source_pixbuf( cr, view.img, 0, 0 );
             cr->rectangle( 0, 0, view.img->get_width(), view.img->get_height() );
             cr->paint();
@@ -481,7 +526,7 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
 
     limitShift();
 
-    if( showCheckboard ) {
+    if( showCheckerboard ) {
         cr->set_line_width( 0 );
         int grid = 8;
         int xx = widgetWidth / grid;
@@ -517,18 +562,36 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
 
     if( binfile.items.size() ) {
         if( preview ) {
-            cr->set_source_rgb( 0, 0, 0.0 );
-            cr->rectangle( 0, 0, watchfaceWidth , watchfaceHeight );
-            cr->fill();
+            Cairo::RefPtr<Cairo::ImageSurface> previewImg = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, watchfaceWidth, watchfaceHeight );
+            Cairo::RefPtr<Cairo::Context> cp = Cairo::Context::create( previewImg );
+            cp->save();
+            cp->set_source_rgb( 0, 0, 0.0 );
+            cp->rectangle( 0, 0, watchfaceWidth , watchfaceHeight );
+            cp->fill();
+            cp->stroke();
+            renderPreview( cp );
+            cp->restore();
+            unsigned char *source = previewImg->get_data();
+            unsigned char *filter = background.img->get_pixels();
+            for( int y = 0; y < previewImg->get_height(); ++y ) {
+                for( int x = 0; x < previewImg->get_width(); ++x ) {
+                    const int pos = 4 * ( x + y * previewImg->get_width() );
+                    swap( source[ pos + 0 ], source[ pos + 2 ]);
+                    if( filter[ pos + 3 ] == 0x00 )
+                        source[ pos + 3 ] = 0x00;
+                }
+            }
+            RefPtr< Gdk::Pixbuf > prvImage = Gdk::Pixbuf::create_from_data(( const guint8 * ) source, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
+            Gdk::Cairo::set_source_pixbuf( cr, prvImage, 0, 0 );
+            cr->rectangle( 0, 0, prvImage->get_width(), prvImage->get_height() );
+            cr->paint();
             cr->stroke();
-
-            renderPreview( cr );
             if( gTypes.get_active_text().size() ) {
                 int id = itemTextToID( gTypes.get_active_text().c_str() );
                 if( binfile.hasitem( id )) {
                     float ms = duration_cast<milliseconds>( system_clock::now() - referenceTime ).count();
                     int isize = 1;
-                    int xpos = 1;
+                    int xPos = 1;
 
                     if ( 19 == id  )
                         isize = 3;
@@ -557,17 +620,12 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
                     cr->set_line_width( 1 );
                     auto &item = binfile.items[ id ];
                     if( isize > 1 )
-                        xpos = ( isize - ( int ) output.length() ) * item.width * 0.5f;
-                    cr->rectangle( item.posx + xpos - 0.5f, item.posy + 0.5f, isize * item.width - 1, item.height - 1 );
+                        xPos = ( isize - ( int ) output.length() ) * item.width * 0.5f;
+                    cr->rectangle( item.posX + xPos - 0.5f, item.posY + 0.5f, isize * item.width - 1, item.height - 1 );
                     cr->stroke();
                     cr->restore();
                 }
             }
-
-            Gdk::Cairo::set_source_pixbuf( cr, mask.img, 0, 0 );
-            cr->rectangle( 0, 0, mask.img->get_width(), mask.img->get_height() );
-            cr->paint();
-            cr->stroke();
         } else {
             size_t pos = 0;
             size_t y = 0;
@@ -631,6 +689,13 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
             cr->move_to( widgetWidth - te.width - 5, widgetHeight - 5 );
             cr->show_text( str.c_str() );
         }
+        if( has_focus() ) {
+            cr->set_source_rgb( 0.0, 1.0, 0.0 );
+        } else {
+            cr->set_source_rgb( 0.4, 0.4, 0.4 );
+        }
+        cr->arc( widgetWidth - 18 , 16, 8.0, 0.0, 2.0 * M_PI);
+        cr->fill_preserve();
     }
 
 
@@ -639,27 +704,31 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
 }
 
 ///////////////////////////////////////
-void MyArea::on_width_changed() {
+void MyArea::on_item_posX_changed() {
 ///////////////////////////////////////
     if( !gTypes.get_active_text().size() )
         return;
 
     int itemid = itemTextToID( gTypes.get_active_text().c_str() );
     auto &item = binfile.items[ itemid ];
-    str = gPosX.get_text().c_str();
-    item.posx = str.toLong();
+    str = gPosXSpin.get_text().c_str();
+    item.posX = str.toLong();
+    if( item.posX > aPosX->get_upper() )
+        item.posX = aPosX->get_upper();
 };
 
 ///////////////////////////////////////
-void MyArea::on_height_changed() {
+void MyArea::on_item_posY_changed() {
 ///////////////////////////////////////
     if( !gTypes.get_active_text().size() )
         return;
 
     int itemid = itemTextToID( gTypes.get_active_text().c_str() );
     auto &item = binfile.items[ itemid ];
-    str = gPosY.get_text().c_str();
-    item.posy = str.toLong();
+    str = gPosYSpin.get_text().c_str();
+    item.posY = str.toLong();
+    if( item.posY > aPosY->get_upper() )
+        item.posY = aPosY->get_upper();
 };
 
 ///////////////////////////////////////
@@ -675,36 +744,35 @@ void MyArea::on_def_value_changed() {
 }
 
 ///////////////////////////////////////
-void MyArea::on_mouse_moved( const Point &pos ) {
+bool MyArea::on_custom_key_pressed( GdkEventKey* event, Gtk::Widget *focus ) {
 ///////////////////////////////////////
-    if( buttonPressed ) {
-        if( gTypes.get_active_text().size() || preview ) {
-            resetShift();
-        } else {
-            shift += pressPosition.y - pos.y;
-            limitShift();
-            pressPosition = pos;
+    if( auto spin = dynamic_cast<SpinButton*>( focus )) {
+        switch( event->keyval ) {
+        case GDK_KEY_Page_Up:
+            spin->spin( Gtk::SPIN_PAGE_FORWARD, 1 );
+            return true;
+        case GDK_KEY_Page_Down:
+            spin->spin( Gtk::SPIN_PAGE_BACKWARD, 1 );
+            return true;
+        case GDK_KEY_KP_Add:
+            spin->spin( event->state & GDK_SHIFT_MASK ? Gtk::SPIN_PAGE_FORWARD : Gtk::SPIN_STEP_FORWARD, 1 );
+            return true;
+        case GDK_KEY_KP_Subtract:
+            spin->spin( event->state & GDK_SHIFT_MASK ? Gtk::SPIN_PAGE_BACKWARD : Gtk::SPIN_STEP_BACKWARD, 1 );
+            return true;
+        default:
+            break;
         }
     }
-};
-
-///////////////////////////////////////
-void MyArea::on_mouse_pressed( uint button, const Point &pos ) {
-///////////////////////////////////////
-    if( button & 1 ) {
-        pressPosition = pos;
-        buttonPressed = true;
-        grab_focus();
+    if( dynamic_cast<Entry*>( focus ) && focus != &gDefValue ) {
+        if(( GDK_KEY_0 > event->keyval || GDK_KEY_9 < event->keyval ) && GDK_KEY_Left != event->keyval && GDK_KEY_Right != event->keyval &&
+            GDK_KEY_BackSpace != event->keyval && GDK_KEY_Delete != event->keyval && GDK_KEY_End != event->keyval && GDK_KEY_Home != event->keyval &&
+         ( focus != &gHeightFrame || GDK_KEY_minus != event->keyval )) {
+            return true;
+        }
     }
-};
-
-///////////////////////////////////////
-void MyArea::on_mouse_released( uint button, const Point &pos ) {
-///////////////////////////////////////
-    if( button & 1 ) {
-        buttonPressed = false;
-    }
-};
+    return false;
+}
 
 ///////////////////////////////////////
 void MyArea::on_types_changed() {
@@ -715,10 +783,14 @@ void MyArea::on_types_changed() {
 
     int itemid = itemTextToID( gTypes.get_active_text().c_str() );
     auto &item = binfile.items[ itemid ];
-    str.format( "%ld", item.posx );
-    gPosX.set_text( str.c_str() );
-    str.format( "%ld", item.posy );
-    gPosY.set_text( str.c_str() );
+    aPosX = Gtk::Adjustment::create( item.posX, 0, watchfaceWidth - item.width, 1, item.width, 0 );
+    gPosXSpin.set_adjustment( aPosX );
+    aPosY = Gtk::Adjustment::create( item.posY, 0, watchfaceHeight - item.height, 1, item.height, 0 );
+    gPosYSpin.set_adjustment( aPosY );
+    str.format( "%ld", item.posX );
+    gPosXSpin.set_text( str.c_str() );
+    str.format( "%ld", item.posY );
+    gPosYSpin.set_text( str.c_str() );
     if( mapcontains( defaults, itemid )) {
         gDefValue.set_text( defaults[ itemid ]);
     }

@@ -35,8 +35,8 @@ struct item {
     unsigned short                      width;
     unsigned int                        pos;
     unsigned short                      height;
-    unsigned short                      posx;
-    unsigned short                      posy;
+    unsigned short                      posX;
+    unsigned short                      posY;
     unsigned short                      dummy1;
     unsigned char                       imgCount;
     unsigned char                       copyImage;

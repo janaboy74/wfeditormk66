@@ -53,10 +53,10 @@ private:
     void                                on_window_hide();
     void                                on_menu_file_quit();
     void                                on_menu_help_about();
-    void                                on_show_checkboard_clicked();
+    void                                on_show_checkerboard_clicked();
 
     RefPtr<MyWindow>                    myWindow;
-    Glib::RefPtr<Gio::SimpleAction>     show_checkboard_action;
+    Glib::RefPtr<Gio::SimpleAction>     show_checkerboard_action;
 };
 
 #endif // WINDOW_H_INCLUDED
