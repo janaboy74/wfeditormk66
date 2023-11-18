@@ -42,12 +42,18 @@ Keys:
 | Key | Description |
 | :---: | :---: |
 | Esc | Clear item parameters |
-| F1 | Preview |
-| F2 | Show details |
+| F1 | Preview mode |
+| F2 | Details mode |
 | q | Previous file in the Watchfaces subfolder. |
 | w | Next file in the Watchfaces subfolder. |
 | c | Create preview image. |
 | d | Switch debug mode( the preview contains IDs instead of test values ). |
+| numpad - | spin button sub ( shift -> accel ) |
+| numpad + | spin button add ( shift -> accel ) |
+| page down | fast spin button sub |
+| page up | fast spin button add |
+| cursors | moving the selected item ( shift -> accel ) |
+| shift + mouse | drag the selected item |
 
 ---
 ### Upload the watchface
