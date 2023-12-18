@@ -18,9 +18,6 @@ using namespace Gtk;
 
 class MyWindow : public ApplicationWindow {
 protected:
-    vector<string>                      filenames;
-    int                                 filepos;
-    corestring                          folder;
     corestring                          str;
 public:
     /* constructor */                   MyWindow();
@@ -31,6 +28,7 @@ public:
     void                                on_bin_file_load();
     void                                on_bin_file_save();
     void                                on_bin_file_save_with_preview();
+    void                                on_filename_changed( const char *filename );
     void                                readFile( ustring filename );
     void                                saveFile( ustring filename );
     Box                                 gVBox, gHBox, gHBox2;

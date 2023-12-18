@@ -10,6 +10,21 @@
 #endif
 
 ///////////////////////////////////////
+template <class V, typename Compare = std::less<V>, typename Alloc = std::allocator<V>> struct coreset : public std::set<V> {
+///////////////////////////////////////
+    coreset( std::initializer_list<V> init, const Compare& comp = Compare(), const Alloc& alloc = Alloc() ) : std::set<V>( init, comp, alloc ) {}
+    V &operator[]( const V val ) {
+        static V dummy;
+        if( contains( val ))
+            return std::set< V>::operator[]( val );
+        return dummy;
+    }
+    bool contains( const V &val ) const {
+        return std::set<V>::find( val ) != this->end();
+    }
+};
+
+///////////////////////////////////////
 RGBColor::RGBColor( unsigned char r, unsigned char g, unsigned char b ) {
 ///////////////////////////////////////
     this->r = r;
@@ -179,13 +194,14 @@ void watchface::writeFile( const char * filename ) {
     size_t len;
     (void) len;
     size_t pos = items.size() * sizeof( item ) + 2 + sizeof( header );
+    hdr.filler = 0; // !!! remove if compress is done !!!
 
     for( auto &itm : items ) {
         itm.second.pos = pos;
         pos += itm.second.width * itm.second.height * itm.second.imgCount * 2;
     }
 
-    int fd = ::open( filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0777 );
+    int fd = ::open( filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666 );
     hdr.datasize = pos - sizeof( header );
     shared_ptr<unsigned char[]> writebuff;
     writebuff = shared_ptr<unsigned char[]>( new unsigned char[ pos - sizeof( hdr )]);
@@ -212,6 +228,13 @@ void watchface::writeFile( const char * filename ) {
 }
 
 ///////////////////////////////////////
+struct compress {
+///////////////////////////////////////
+    unsigned char size;
+    unsigned char count;
+};
+
+///////////////////////////////////////
 void watchface::parse() {
 ///////////////////////////////////////
     unsigned char *start = ( unsigned char * ) buffer.get();
@@ -220,23 +243,59 @@ void watchface::parse() {
     items.clear();
 
     for( ; tmp->type; ++tmp ) {
+#if 0
         if( tmp->type == 13 )
             tmp->imgCount = 14;
 
         if( tmp->type == 24 )
             tmp->imgCount = 8;
-
+#endif
         items.insert(pair<int, imgitem>( tmp->type, *tmp ));
     }
 
     unsigned char *data = ( unsigned char * ) tmp;
     int shift = data - start;
 
+    coreset<uint8_t> exception = { 71 };
+
     for( auto &item : items ) {
         item.second.pos = ( item.second.pos - shift );
         item.second.count = item.second.width * item.second.height * item.second.imgCount;
         item.second.orig = shared_ptr<unsigned short[]>( new unsigned short[ item.second.count ]);
-        memcpy( item.second.orig.get(), data + item.second.pos, item.second.count * 2 );
+        vector<uint32_t> startPositions;
+        startPositions.resize( item.second.height );
+        auto ptr = ( uint16_t * ) &*item.second.orig.get();
+        auto end = ptr;
+        if( hdr.filler == ~0xfd00feffl && (( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) { // 0xffffffff02ff0100
+            uint32_t *head = ( uint32_t * ) ( data + item.second.pos );
+            for( size_t imgID = 0 ; imgID < item.second.imgCount; ++imgID ) {
+                unsigned char *start = ( unsigned char * ) head;
+                uint32_t *next = ( uint32_t * ) ( start + *head ); ++head;
+                start = ( unsigned char * ) head;
+                memcpy(( void* ) &startPositions.at( 0 ), head, item.second.height * 4 );
+                for( size_t y = 0; y < item.second.height; ++y ) {
+                    ptr = end;
+                    end = ( ptr + item.second.width );
+                    unsigned short *src = ( unsigned short * ) ( start + startPositions[ y ] );
+                    while( ptr < end ) {
+                        compress *params = (compress*)src; ++src;
+                        auto from = src;
+                        for( size_t s = 0; s < params->size; ++s ) {
+                            for( size_t c = 0; c < params->count; ++c ) {
+                                if( ptr >= end )
+                                    break;
+                                *ptr = *from; ++ptr;
+                            }
+                            ++from;
+                        }
+                        src += params->size;
+                    }
+                }
+                head = ++next;
+            }
+        } else {
+            memcpy( item.second.orig.get(), data + item.second.pos, item.second.count * 2 );
+        }
         item.second.toRGB32();
     }
     updateMaxHeight();

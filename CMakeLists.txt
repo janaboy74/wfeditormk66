@@ -6,7 +6,8 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED "gtkmm-3.0")
 
 file( GLOB SRCS
-    "${PROJECT_SOURCE_DIR}/src/*.cpp" )
+    "${PROJECT_SOURCE_DIR}/src/*.cpp"
+    "${PROJECT_SOURCE_DIR}/src/*.h" )
 
 string(FIND ${CMAKE_SYSTEM_NAME} "Linux" OS_NAME)
 if(${OS_NAME} GREATER_EQUAL 0)

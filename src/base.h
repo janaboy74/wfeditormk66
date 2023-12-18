@@ -18,6 +18,7 @@ struct corestring : public string {
     void                                formatva( const char *format, va_list &arg_list );
     void                                format( const char *format, ... );
     long                                toLong();
+    char                               *get();
     void                                operator += ( const char * append );
     /* cast operator */                 operator const char *();
 };

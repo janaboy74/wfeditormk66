@@ -1,33 +1,24 @@
 #include "window.h"
 
 ///////////////////////////////////////
-MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIENTATION_HORIZONTAL ), gHBox2( ORIENTATION_HORIZONTAL ) {
+MyWindow::MyWindow() : gVBox( ORIENTATION_VERTICAL ), gHBox( ORIENTATION_HORIZONTAL ), gHBox2( ORIENTATION_HORIZONTAL ) {
 ///////////////////////////////////////
     auto buffer = getcwd( nullptr, 0 );
-    folder = buffer;
-    folder += "/Watchfaces/";
+    drawArea.folder = buffer;
+    drawArea.folder += "/Watchfaces/";
     free( buffer );
 
+    drawArea.filename_changed().connect( sigc::mem_fun( *this, &MyWindow::on_filename_changed ));
 #ifdef linux
-    mkdir( folder.c_str(), 0777 );
+    mkdir( drawArea.folder.c_str(), 0777 );
 #else
-    mkdir( folder.c_str() );
+    mkdir( drawArea.folder.c_str() );
 #endif
 
-    DIR *dir = opendir( folder.c_str() );
-    struct dirent *dp;
-
-    while (( dp = readdir( dir )) != nullptr ) {
-        string filename = dp->d_name;
-
-        if( filename.substr( filename.find_last_of( "." ) + 1 ) == "bin" )
-            filenames.push_back( filename );
-    }
-
-    closedir( dir );
+    drawArea.setupDir( drawArea.folder );
     corestring file;
-    if( filenames.size() ) {
-        file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
+    if( drawArea.filenames.size() ) {
+        file.format( "%s%s", drawArea.folder.c_str(), drawArea.filenames[ drawArea.filepos ].c_str());
         readFile( file.c_str() );
     }
     set_default_size( 1000, 800 );
@@ -79,30 +70,6 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
     show_all_children();
     drawArea.grab_focus();
     signal_key_press_event().connect([&]( GdkEventKey* event )->bool {
-        if( filenames.size() ) {
-            if( GDK_KEY_q == event->keyval ) {
-                if( --filepos < 0 )
-                    filepos = filenames.size() - 1;
-
-                if(( int ) filenames.size() > filepos ) {
-                    corestring file;
-                    file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
-                    readFile( file.c_str() );
-                    drawArea.resetShift();
-                }
-            }
-            if( GDK_KEY_w == event->keyval ) {
-                if( ++filepos >= ( int ) filenames.size() )
-                    filepos = 0;
-
-                if(( int ) filenames.size() > filepos ) {
-                    corestring file;
-                    file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str() );
-                    readFile( file.c_str() );
-                    drawArea.resetShift();
-                }
-            }
-        }
         if( GDK_KEY_Escape == event->keyval )
             drawArea.initFields();
         if( GDK_KEY_F1 == event->keyval ) {
@@ -113,7 +80,7 @@ MyWindow::MyWindow() : filepos( 0 ), gVBox( ORIENTATION_VERTICAL ), gHBox( ORIEN
             drawArea.preview = false;
             drawArea.initFields();
         }
-        return drawArea.on_custom_key_pressed( event, get_focus() );
+        return drawArea.on_window_key_pressed( event, get_focus() );
     }, false );
 };
 
@@ -127,7 +94,7 @@ ustring MyWindow::getFilenameDialog( const char *title, FileChooserAction fileAc
     auto dialog = new FileChooserDialog( title, fileAction );
     dialog->set_transient_for( *this );
     dialog->set_modal( true );
-    dialog->set_current_folder( folder.c_str() );
+    dialog->set_current_folder( drawArea.folder.c_str() );
 
     dialog->add_button("Cancel", RESPONSE_CANCEL);
     if( FILE_CHOOSER_ACTION_SAVE == fileAction )
@@ -266,12 +233,18 @@ void MyWindow::on_bin_file_save_with_preview() {
 }
 
 ///////////////////////////////////////
+void MyWindow::on_filename_changed( const char *filename )
+///////////////////////////////////////
+{
+    corestring title;
+    title.format( "MK66 Watchface Editor - %s", filename );
+    set_title( title.c_str() );
+}
+
+///////////////////////////////////////
 void MyWindow::readFile( ustring filename ) {
 ///////////////////////////////////////
     drawArea.setup( filename.c_str() );
-    corestring title;
-    title.format( "MK66 Watchface Editor - %s", filename.c_str() );
-    set_title( title.c_str() );
 }
 
 ///////////////////////////////////////

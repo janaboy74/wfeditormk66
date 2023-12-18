@@ -7,6 +7,7 @@
 #include <gtkmm/window.h>
 #include <chrono>
 #include "watchface.h"
+#include <sigc++/sigc++.h>
 
 using namespace Glib;
 using namespace Gtk;
@@ -39,11 +40,14 @@ class MyArea : public DrawingArea {
     int                                 widgetHeight;
     corestring                          str;
     time_point<system_clock>            referenceTime;
+    using type_filename_changed = sigc::signal<void ( const char * )>;
+    type_filename_changed               signal_filename_changed;
 public:
     /* constructor */                   MyArea();
     virtual                            ~MyArea();
     void                                updateTypes();
     void                                setup( const char *filename );
+    void                                setupDir( const char * directory );
     void                                write( const char *filename );
     void                                createPreview();
     corestring                          getDefault( int id );
@@ -56,13 +60,14 @@ public:
     void                                on_item_posX_changed();
     void                                on_item_posY_changed();
     void                                on_def_value_changed();
-    bool                                on_custom_key_pressed( GdkEventKey* event, Gtk::Widget *focus );
+    bool                                on_window_key_pressed( GdkEventKey* event, Gtk::Widget *focus );
     void                                on_types_changed();
     void                                on_add_clicked();
     void                                on_del_clicked();
     void                                on_add_height_clicked();
     void                                on_copy_image_clicked();
     bool                                on_timeout();
+    type_filename_changed               filename_changed();
     int                                 watchfaceWidth;
     int                                 watchfaceHeight;
     int                                 shift;
@@ -85,6 +90,9 @@ public:
     CheckButton                         gCopyImage;
     image                               background;
     bool                                showCheckerboard;
+    corestring                          folder;
+    vector<string>                      filenames;
+    int                                 filepos;
 };
 
 #endif // VISUALS_H_INCLUDED

@@ -8,7 +8,7 @@ struct itemParams {
 
 map<char, int> chrtopos= {{ '-', 0 },{ '.', 1 },{ '/', 2 },{ '0', 3 },{ '1', 4 },{ '2', 5 },{ '3', 6 },{ '4', 7 },{ '5', 8 },{ '6', 9 },{ '7', 10 },{ '8', 11 },{ '9', 12 },{ ':', 13 }};
 map<int, corestring> defaults = {{ 1, "hour" },{ 2, "minute" },{ 3, "second" },{ 4, "hour" },{ 5, "minute" },{ 6, "second" },{ 11, "month" },{ 13, "day" },{ 15, "weekday" },{ 19, "80" },
-                                { 21, "20" },{ 25, "2345" },{ 27, "year" },{ 30, "345" },{ 33, "60" },{ 47, "4320" }};
+                                { 21, "20" },{ 25, "2345" },{ 27, "year" },{ 30, "345" },{ 33, "100" },{ 47, "4320" }};
 map<int, itemParams> itemparams= {{ 1, { 1, "hour-hand-image", false }}, { 2, { 1, "minute-hand-image", false }}, { 3, { 1, "second-hand-image", false }}, { 4, { 14, "hour-digit-text", true }},
     { 5, { 14, "minute-digit-text", true }}, { 6, { 14, "second-digit-text", true }}, { 8, { 5, "battery-indicator-image", false }}, { 9, { 2,"conntection-indicator-image", false }},
     { 10, { 1, "preview-image", false }}, { 11, { 14, "month-text", true }}, { 12, { 24, "month-names-image", false }}, { 13, { 14, "day-text", true }}, { 14, { 1, "month-day-separator", false }},
@@ -65,32 +65,8 @@ double Point::dist() const {
 }
 
 ///////////////////////////////////////
-MyArea::MyArea() : posX( 0 ), posY( 0 ), watchfaceWidth( 240 ), watchfaceHeight( 280 ), shift( 0 ), preview( true ), debug( false ), button( 0 ), showCheckerboard( false ) {
+MyArea::MyArea() : posX( 0 ), posY( 0 ), watchfaceWidth( 240 ), watchfaceHeight( 280 ), shift( 0 ), preview( true ), debug( false ), button( 0 ), showCheckerboard( false ), filepos( 0 ) {
 ///////////////////////////////////////
-    int pixelcount = watchfaceWidth * watchfaceHeight;
-    background.imgbuff.resize( pixelcount * 4 );
-    unsigned int *pixels = ( unsigned int * ) background.imgbuff.data();
-    memset( pixels, 0, pixelcount * 4 );
-    int rounding = 54;
-    const int halfx = watchfaceWidth / 2;
-    const int halfy = watchfaceHeight / 2;
-    for( int y = 0; y < watchfaceHeight; ++y ) {
-        int dy = y - halfy;
-        if( dy < 0 )
-            ++dy;
-        dy = fabs( dy );
-        int ry = dy + rounding - halfy;
-        for( int x = 0; x < watchfaceWidth; ++x ) {
-            int dx = x - halfx;
-            if( dx < 0 )
-                ++dx;
-            dx = fabs( dx );
-            int rx = dx + rounding - halfx;
-            bool draw = ( int ) sqrt( rx * rx + ry * ry ) > rounding - 1 && rx * dx > 0 && ry * dy > 0 ;
-            pixels[ x + y * watchfaceWidth ] = draw ? 0x00000000 : 0xff000000;
-        }
-    }
-    background.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) pixels, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
     gPosXSpin.signal_changed().connect( sigc::mem_fun( this, &MyArea::on_item_posX_changed ));
     gPosYSpin.signal_changed().connect( sigc::mem_fun( this, &MyArea::on_item_posY_changed ));
 
@@ -217,9 +193,50 @@ void MyArea::updateTypes() {
 void MyArea::setup( const char * filename ) {
 ///////////////////////////////////////
     binfile.readFile( filename );
+    signal_filename_changed.emit( filename );
     watchfaceWidth = binfile.hdr.w;
     watchfaceHeight = binfile.hdr.h;
+    int pixelcount = watchfaceWidth * watchfaceHeight;
+    background.imgbuff.resize( pixelcount * 4 );
+    unsigned int *pixels = ( unsigned int * ) background.imgbuff.data();
+    memset( pixels, 0, pixelcount * 4 );
+    int rounding = 54;
+    const int halfx = watchfaceWidth / 2;
+    const int halfy = watchfaceHeight / 2;
+    for( int y = 0; y < watchfaceHeight; ++y ) {
+        int dy = y - halfy;
+        if( dy < 0 )
+            ++dy;
+        dy = fabs( dy );
+        int ry = dy + rounding - halfy;
+        for( int x = 0; x < watchfaceWidth; ++x ) {
+            int dx = x - halfx;
+            if( dx < 0 )
+                ++dx;
+            dx = fabs( dx );
+            int rx = dx + rounding - halfx;
+            bool draw = ( int ) sqrt( rx * rx + ry * ry ) > rounding - 1 && rx * dx > 0 && ry * dy > 0 ;
+            pixels[ x + y * watchfaceWidth ] = draw ? 0x00000000 : 0xff000000;
+        }
+    }
+    background.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) pixels, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
     updateTypes();
+}
+
+///////////////////////////////////////
+void MyArea::setupDir( const char * directory ) {
+///////////////////////////////////////
+    DIR *dir = opendir( directory );
+    struct dirent *dp;
+
+    while (( dp = readdir( dir )) != nullptr ) {
+        string filename = dp->d_name;
+
+        if( filename.substr( filename.find_last_of( "." ) + 1 ) == "bin" )
+            filenames.push_back( filename );
+    }
+
+    closedir( dir );
 }
 
 ///////////////////////////////////////
@@ -370,7 +387,6 @@ void MyArea::initFields() {
 ///////////////////////////////////////
 void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
 ///////////////////////////////////////
-    corestring clock;
     corestring output;
 
     if( binfile.hasitem( 17 )) {
@@ -415,7 +431,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
                 else if ( 30 == id  )
                     isize = 4;
                 else if ( 33 == id  )
-                    isize = 4;
+                    isize = 3;
                 else if ( 47 == id  )
                     isize = 5;
 
@@ -469,6 +485,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
                 else
                     pos = 0;
 
+                pos %= item.imgCount;
                 view.getFromMemory(( unsigned char * )( item.RGB32.get() + ( pos * item.width * item.height )), item.width, item.height );
                 cr->save();
                 cr->translate( item.posX, item.posY );
@@ -744,7 +761,7 @@ void MyArea::on_def_value_changed() {
 }
 
 ///////////////////////////////////////
-bool MyArea::on_custom_key_pressed( GdkEventKey* event, Gtk::Widget *focus ) {
+bool MyArea::on_window_key_pressed( GdkEventKey* event, Gtk::Widget *focus ) {
 ///////////////////////////////////////
     if( auto spin = dynamic_cast<SpinButton*>( focus )) {
         switch( event->keyval ) {
@@ -769,6 +786,30 @@ bool MyArea::on_custom_key_pressed( GdkEventKey* event, Gtk::Widget *focus ) {
             GDK_KEY_BackSpace != event->keyval && GDK_KEY_Delete != event->keyval && GDK_KEY_End != event->keyval && GDK_KEY_Home != event->keyval &&
          ( focus != &gHeightFrame || GDK_KEY_minus != event->keyval )) {
             return true;
+        }
+    }
+    if( filenames.size() ) {
+        if( GDK_KEY_q == event->keyval ) {
+            if( --filepos < 0 )
+                filepos = filenames.size() - 1;
+
+            if(( int ) filenames.size() > filepos ) {
+                corestring file;
+                file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str());
+                setup( file.c_str() );
+                resetShift();
+            }
+        }
+        if( GDK_KEY_w == event->keyval ) {
+            if( ++filepos >= ( int ) filenames.size() )
+                filepos = 0;
+
+            if(( int ) filenames.size() > filepos ) {
+                corestring file;
+                file.format( "%s%s", folder.c_str(), filenames[ filepos ].c_str() );
+                setup( file.c_str() );
+                resetShift();
+            }
         }
     }
     return false;
@@ -878,4 +919,10 @@ bool MyArea::on_timeout() {
 ///////////////////////////////////////
     queue_draw();
     return true;
+}
+
+///////////////////////////////////////
+MyArea::type_filename_changed MyArea::filename_changed()
+{
+  return signal_filename_changed;
 }
