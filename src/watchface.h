@@ -27,7 +27,7 @@ struct header {
     unsigned int                        crc32b;
     unsigned short                      w;
     unsigned short                      h;
-    int64_t                             filler;
+    uint64_t                            compress;
 };
 
 struct item {

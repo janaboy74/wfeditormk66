@@ -194,7 +194,7 @@ void watchface::writeFile( const char * filename ) {
     size_t len;
     (void) len;
     size_t pos = items.size() * sizeof( item ) + 2 + sizeof( header );
-    hdr.filler = 0; // !!! remove if compress is done !!!
+    hdr.compress = 0; // !!! remove if compress is done !!!
 
     for( auto &itm : items ) {
         itm.second.pos = pos;
@@ -243,13 +243,6 @@ void watchface::parse() {
     items.clear();
 
     for( ; tmp->type; ++tmp ) {
-#if 0
-        if( tmp->type == 13 )
-            tmp->imgCount = 14;
-
-        if( tmp->type == 24 )
-            tmp->imgCount = 8;
-#endif
         items.insert(pair<int, imgitem>( tmp->type, *tmp ));
     }
 
@@ -266,7 +259,7 @@ void watchface::parse() {
         startPositions.resize( item.second.height );
         auto ptr = ( uint16_t * ) &*item.second.orig.get();
         auto end = ptr;
-        if( hdr.filler == ~0xfd00feffl && (( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) { // 0xffffffff02ff0100
+        if( hdr.compress == ~((uint64_t)0xfd00fefful) && (( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) { // 0xffffffff02ff0100
             uint32_t *head = ( uint32_t * ) ( data + item.second.pos );
             for( size_t imgID = 0 ; imgID < item.second.imgCount; ++imgID ) {
                 unsigned char *start = ( unsigned char * ) head;

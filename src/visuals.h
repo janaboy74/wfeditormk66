@@ -8,6 +8,7 @@
 #include <chrono>
 #include "watchface.h"
 #include <sigc++/sigc++.h>
+#include <dirent.h>
 
 using namespace Glib;
 using namespace Gtk;
