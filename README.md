@@ -78,3 +78,7 @@ If someone has a better solution please share it with me and I will publish it.
 - You need to install for both windows and for linux development packages as well.
 ---
 János
+---
+It took 3 days until the editor was fully functional + an addition day until I found the right checksum routine waht is stored in the file.<br>
+I invested around an additional week for refinements and rework until its final usable state.<br>
+It took another day to implement the decompression of compressed watchfaces.
