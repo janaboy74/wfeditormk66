@@ -153,7 +153,8 @@ MyArea::MyArea() : posX( 0 ), posY( 0 ), watchfaceWidth( 240 ), watchfaceHeight(
     }, false );
 
     signal_draw().connect( sigc::mem_fun( *this, &MyArea::on_draw ));
-    initFields();
+    doBackground();
+    updateTypes();
     referenceTime = system_clock::now();
 };
 
@@ -190,12 +191,8 @@ void MyArea::updateTypes() {
 }
 
 ///////////////////////////////////////
-void MyArea::setup( const char * filename ) {
+void MyArea::doBackground() {
 ///////////////////////////////////////
-    binfile.readFile( filename );
-    signal_filename_changed.emit( filename );
-    watchfaceWidth = binfile.hdr.w;
-    watchfaceHeight = binfile.hdr.h;
     int pixelcount = watchfaceWidth * watchfaceHeight;
     background.imgbuff.resize( pixelcount * 4 );
     unsigned int *pixels = ( unsigned int * ) background.imgbuff.data();
@@ -220,6 +217,16 @@ void MyArea::setup( const char * filename ) {
         }
     }
     background.img = Gdk::Pixbuf::create_from_data(( const guint8 * ) pixels, Gdk::COLORSPACE_RGB, true, 8, watchfaceWidth, watchfaceHeight, watchfaceWidth * 4 );
+}
+
+///////////////////////////////////////
+void MyArea::setup( const char * filename ) {
+///////////////////////////////////////
+    binfile.readFile( filename );
+    signal_filename_changed.emit( filename );
+    watchfaceWidth = binfile.hdr.w;
+    watchfaceHeight = binfile.hdr.h;
+    doBackground();
     updateTypes();
 }
 
@@ -248,11 +255,21 @@ void MyArea::write( const char * filename ) {
 ///////////////////////////////////////
 void MyArea::createPreview() {
 ///////////////////////////////////////
+    if( !binfile.hasitem( 10 ) && binfile.hasitem( 17 ) ) {
+        auto &background = binfile.items[ 17 ];
+        imgitem item;
+        item.type = 10;
+        item.width = background.width;
+        item.height = background.height;
+        item.imgCount = itemparams[ item.type ].defImgCount;
+        binfile.items.insert(pair<int, imgitem>( item.type, item ));
+        updateTypes();
+    }
     if( binfile.hasitem( 10 )) {
-        auto &background = binfile.items[ 10 ];
-        background.imgCount = 1;
-        background.count = background.width * background.height * background.imgCount;
-        Cairo::RefPtr<Cairo::ImageSurface> img = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, watchfaceWidth, watchfaceHeight );
+        auto &preview = binfile.items[ 10 ];
+        preview.imgCount = 1;
+        preview.count = preview.width * preview.height * preview.imgCount;
+        Cairo::RefPtr<Cairo::ImageSurface> img = Cairo::ImageSurface::create(Cairo::FORMAT_ARGB32, preview.width, preview.height );
         Cairo::RefPtr<Cairo::Context> cr = Cairo::Context::create( img );
         cr->save();
         cr->scale( 1.f * ( img->get_width() - 40 ) / img->get_width(), 1.f * ( img->get_height() - 39 ) / img->get_height() );
@@ -263,9 +280,9 @@ void MyArea::createPreview() {
         const int halfx = img->get_width() / 2;
         const int halfy = img->get_height() / 2;
         int pixelcount = img->get_width() * img->get_height();
-        background.RGB32 = shared_ptr<unsigned int[]>( new unsigned int[ pixelcount ]);
+        preview.RGB32 = shared_ptr<unsigned int[]>( new unsigned int[ pixelcount ]);
         auto source = img->get_data();
-        auto rgbcolor = background.RGB32.get();
+        auto rgbcolor = preview.RGB32.get();
         for( int y = 0; y < img->get_height(); ++y ) {
             int dy = y - halfy;
             if( dy < 0 )
@@ -308,8 +325,8 @@ void MyArea::createPreview() {
                 ++rgbcolor;
             }
         }
-        background.toOrig();
-        background.updateAlpha();
+        preview.toOrig();
+        preview.updateAlpha();
     }
 }
 
@@ -389,7 +406,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
 ///////////////////////////////////////
     corestring output;
 
-    if( binfile.hasitem( 17 )) {
+    if( binfile.hasitem( 17 ) && binfile.items[ 17 ].RGB32.get() ) {
         auto &background = binfile.items[ 17 ];
         view.getFromMemory(( unsigned char * )background.RGB32.get(), background.width, background.height );
         Gdk::Cairo::set_source_pixbuf( cr, view.img, background.posX, background.posY );
@@ -498,7 +515,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
         }
     }
     for( int id = 1; id <=3; ++id ) {
-        if( binfile.hasitem( id )) {
+        if( binfile.hasitem( id ) && binfile.items[ id ].RGB32.get() ) {
             corestring def;
             int hour = getDefault( 1 ).toLong();
             int minute = getDefault( 2 ).toLong();
@@ -588,6 +605,7 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
             cp->stroke();
             renderPreview( cp );
             cp->restore();
+
             unsigned char *source = previewImg->get_data();
             unsigned char *filter = background.img->get_pixels();
             for( int y = 0; y < previewImg->get_height(); ++y ) {
@@ -603,6 +621,7 @@ bool MyArea::on_draw( const Cairo::RefPtr<Cairo::Context>& cr ) {
             cr->rectangle( 0, 0, prvImage->get_width(), prvImage->get_height() );
             cr->paint();
             cr->stroke();
+
             if( gTypes.get_active_text().size() ) {
                 int id = itemTextToID( gTypes.get_active_text().c_str() );
                 if( binfile.hasitem( id )) {

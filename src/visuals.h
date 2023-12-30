@@ -47,6 +47,7 @@ public:
     /* constructor */                   MyArea();
     virtual                            ~MyArea();
     void                                updateTypes();
+    void                                doBackground();
     void                                setup( const char *filename );
     void                                setupDir( const char * directory );
     void                                write( const char *filename );
