@@ -1,4 +1,4 @@
-# Watchface editor for MK66 Smartwatch
+# Watchface editor for MK66 and P32D Smartwatches
 
 ![image](https://github.com/janaboy74/wfeditormk66/assets/54952408/f9b74273-6cd8-4427-b086-459cfb1435c8)
 
