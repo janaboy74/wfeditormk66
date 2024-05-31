@@ -70,7 +70,7 @@ item::item() {
     imgCount = 0;
     copyImage = 0;
     dummy2 = 0;
-    dummy3 = 0;
+    memset(clockHandsInfo, 0, sizeof(clockHandsInfo));
 }
 
 ///////////////////////////////////////
@@ -92,7 +92,7 @@ void item::operator = ( const item &other ) {
     imgCount = other.imgCount;
     copyImage = other.copyImage;
     dummy2 = other.dummy2;
-    dummy3 = other.dummy3;
+    memcpy(clockHandsInfo, other.clockHandsInfo, sizeof(clockHandsInfo));
 }
 
 ///////////////////////////////////////
