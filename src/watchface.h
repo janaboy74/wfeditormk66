@@ -41,7 +41,7 @@ struct item {
     unsigned char                       imgCount;
     unsigned char                       copyImage;
     unsigned short                      dummy2;
-    unsigned int                        dummy3;
+    unsigned char                       clockHandsInfo[4];
     /* constructor */                   item();
     /* constructor */                   item( const item &other );
     void operator = ( const item &other );

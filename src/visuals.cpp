@@ -524,8 +524,7 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
             int shiftX = 0;
             int shiftY = 0;
             float rotateAngle = 0;
-            shiftX = -item.width / 2;
-            shiftY = - watchfaceHeight / 2 + ( item.posY ? item.posY - item.height + item.width / 2 : 0 );
+            /* calculate clock wise */
             int secs = hour * 3600l + minute * 60l + second * 1l;
             if( 1 == id )
                 rotateAngle = 360 * ( secs / 3600.f / 12.f );
@@ -533,11 +532,29 @@ void MyArea::renderPreview( const Cairo::RefPtr<Cairo::Context>& cr ) {
                 rotateAngle = 360 * ( secs / 3600.f );
             else if ( 3 == id  )
                 rotateAngle = 360 * secs / 60.f;
+            
+            /* if clock hands have spin infomations */
+            if( item.clockHandsInfo[1] || item.clockHandsInfo[2] || item.clockHandsInfo[3] ) { 
+                /* spin center get from clockHandsInfo */
+                int needleH = item.clockHandsInfo[1];
+                int needleW = item.clockHandsInfo[3];
+                int needleSpinAxis = item.clockHandsInfo[2];
+                shiftX = -needleW / 2;      /* needle's spin X Axis */
+                shiftY = -needleSpinAxis;   /* needle's spin Y Axis */
+                view.getFromMemory(( unsigned char * ) item.RGB32.get(), item.width, item.height );
+                cr->save();
+                cr->translate( item.posX,  item.posY); /* set item position */
+            }
+            else {
+                /* spin center become center of screen */
+                shiftX = -item.width / 2;
+                shiftY = - watchfaceHeight / 2 + ( item.posY ? ((item.posY - item.height) + (item.width / 2)) : 0 );
             view.getFromMemory(( unsigned char * ) item.RGB32.get(), item.width, item.height );
             cr->save();
             cr->translate( watchfaceWidth / 2, watchfaceHeight / 2 );
+            }
             cr->rotate( rotateAngle * M_PI / 180 );
-            cr->translate( shiftX, shiftY );
+            cr->translate( shiftX, shiftY ); /* set center of spin */
             Gdk::Cairo::set_source_pixbuf( cr, view.img, 0, 0 );
             cr->rectangle( 0, 0, view.img->get_width(), view.img->get_height() );
             cr->paint();
