@@ -194,7 +194,7 @@ void watchface::writeFile( const char * filename ) {
     size_t len;
     (void) len;
     size_t pos = items.size() * sizeof( item ) + 2 + sizeof( header );
-    hdr.compress = 0; // !!! remove if compress is done !!!
+    memset(&hdr.compress[0], 0, sizeof(hdr.compress));// !!! remove if compress is done !!!
 
     for( auto &itm : items ) {
         itm.second.pos = pos;
@@ -251,6 +251,8 @@ void watchface::parse() {
 
     coreset<uint8_t> exception = { 71 };
 
+    int hdrCompress = hdr.compress[0] & 0xFFFFFF00; /* mask compress format */
+
     for( auto &item : items ) {
         item.second.pos = ( item.second.pos - shift );
         item.second.count = item.second.width * item.second.height * item.second.imgCount;
@@ -259,7 +261,11 @@ void watchface::parse() {
         startPositions.resize( item.second.height );
         auto ptr = ( uint16_t * ) &*item.second.orig.get();
         auto end = ptr;
-        if( hdr.compress == ~((uint64_t)0xfd00fefful) && (( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) { // 0xffffffff02ff0100
+
+        // If bin file's compress format(address 0x00000010~0x00000017) is 0x02FF01??.
+        // We need to special process to get images.
+        // ※ '?' is don't care.
+        if( hdrCompress == COMPRESS_FORMAT && (( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) {
             uint32_t *head = ( uint32_t * ) ( data + item.second.pos );
             for( size_t imgID = 0 ; imgID < item.second.imgCount; ++imgID ) {
                 unsigned char *start = ( unsigned char * ) head;
