@@ -35,7 +35,7 @@ extern vector<int>                      format;
 extern vector<int>                      imgs;
 
 class MyArea : public DrawingArea {
-    int                                 posX, posY;
+    int                                 posX, posY, clkAxisY;
     Point                               pressPosition;
     int                                 widgetWidth;
     int                                 widgetHeight;
@@ -70,6 +70,7 @@ public:
     void                                on_copy_image_clicked();
     bool                                on_timeout();
     type_filename_changed               filename_changed();
+    void                                on_clock_hands_spinAxisY_changed();
     int                                 watchfaceWidth;
     int                                 watchfaceHeight;
     int                                 shift;
@@ -80,7 +81,7 @@ public:
     image                               view;
     Label                               gXText;
     Label                               gYText;
-    RefPtr<Gtk::Adjustment>             aPosX, aPosY;
+    RefPtr<Gtk::Adjustment>             aPosX, aPosY, aClkAxisY;
     SpinButton                          gPosXSpin, gPosYSpin;
     Button                              gLoad, gSave;
     Button                              gAdd, gDel;
@@ -95,6 +96,8 @@ public:
     corestring                          folder;
     vector<string>                      filenames;
     int                                 filepos;
+    Label                               gClkAxisYText;
+    SpinButton                          gClkAxisY;
 };
 
 #endif // VISUALS_H_INCLUDED

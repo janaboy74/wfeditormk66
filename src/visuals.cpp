@@ -65,10 +65,11 @@ double Point::dist() const {
 }
 
 ///////////////////////////////////////
-MyArea::MyArea() : posX( 0 ), posY( 0 ), watchfaceWidth( 240 ), watchfaceHeight( 280 ), shift( 0 ), preview( true ), debug( false ), button( 0 ), showCheckerboard( false ), filepos( 0 ) {
+MyArea::MyArea() : posX( 0 ), posY( 0 ), clkAxisY(0), watchfaceWidth( 240 ), watchfaceHeight( 280 ), shift( 0 ), preview( true ), debug( false ), button( 0 ), showCheckerboard( false ), filepos( 0 ) {
 ///////////////////////////////////////
     gPosXSpin.signal_changed().connect( sigc::mem_fun( this, &MyArea::on_item_posX_changed ));
     gPosYSpin.signal_changed().connect( sigc::mem_fun( this, &MyArea::on_item_posY_changed ));
+    gClkAxisY.signal_changed().connect( sigc::mem_fun( this, &MyArea::on_clock_hands_spinAxisY_changed ));
 
 
     add_events( Gdk::KEY_PRESS_MASK | Gdk::POINTER_MOTION_MASK | Gdk::BUTTON_PRESS_MASK  | Gdk::BUTTON_RELEASE_MASK );
@@ -864,10 +865,18 @@ void MyArea::on_types_changed() {
     gPosXSpin.set_adjustment( aPosX );
     aPosY = Gtk::Adjustment::create( item.posY, 0, watchfaceHeight - item.height, 1, item.height, 0 );
     gPosYSpin.set_adjustment( aPosY );
+                                        /* Value               , Lower  , Upper                        , Step_Increment, Page_Increment, Page_Size  */
+    aClkAxisY = Gtk::Adjustment::create( item.clockHandsInfo[2], 0      , watchfaceHeight - item.height, 1             , item.height   , 0 );
+    gClkAxisY.set_adjustment( aClkAxisY );
+
     str.format( "%ld", item.posX );
     gPosXSpin.set_text( str.c_str() );
     str.format( "%ld", item.posY );
     gPosYSpin.set_text( str.c_str() );
+
+    str.format( "%ld", item.clockHandsInfo[2] );
+    gClkAxisY.set_text( str.c_str() );
+
     if( mapcontains( defaults, itemid )) {
         gDefValue.set_text( defaults[ itemid ]);
     }
@@ -962,3 +971,21 @@ MyArea::type_filename_changed MyArea::filename_changed()
 {
   return signal_filename_changed;
 }
+
+///////////////////////////////////////
+void MyArea::on_clock_hands_spinAxisY_changed() {
+///////////////////////////////////////
+    if( !gTypes.get_active_text().size() )
+        return;
+
+    int itemid = itemTextToID( gTypes.get_active_text().c_str() );
+
+    if( 0 < itemid && itemid <= 3 ) {
+        auto &item = binfile.items[ itemid ];
+        str = gClkAxisY.get_text().c_str();
+        item.clockHandsInfo[2] = str.toLong();
+        if( item.clockHandsInfo[2] > aClkAxisY->get_upper() )
+            item.clockHandsInfo[2] = aClkAxisY->get_upper();
+    }
+    
+};

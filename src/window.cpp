@@ -47,6 +47,10 @@ MyWindow::MyWindow() : gVBox( ORIENTATION_VERTICAL ), gHBox( ORIENTATION_HORIZON
     gHBox.add( drawArea.gYText );
     gHBox.add( drawArea.gPosYSpin );
 
+    drawArea.gClkAxisYText.set_label( "spin axisY" );
+    gHBox2.add( drawArea.gClkAxisYText );
+    gHBox2.add( drawArea.gClkAxisY );
+
     gHBox.set_halign( Gtk::Align::ALIGN_START );
     gHBox2.set_halign( Gtk::Align::ALIGN_START );
     drawArea.set_vexpand( true );
