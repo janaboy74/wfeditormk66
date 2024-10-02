@@ -7,6 +7,7 @@
 using namespace std;
 
 #define mapcontains( mapinst, id ) ( mapinst.find( id ) != mapinst.end() )
+#define COMPRESS_FORMAT 0x02FF0100 
 
 #pragma pack( push )
 #pragma pack( 1 )
@@ -27,7 +28,7 @@ struct header {
     unsigned int                        crc32b;
     unsigned short                      w;
     unsigned short                      h;
-    uint64_t                            compress;
+    unsigned int                        compress[2];
 };
 
 struct item {
