@@ -31,11 +31,11 @@ void corestring::formatva( const char *format, va_list &arg_list ) {
         va_list cova;
         va_copy( cova, arg_list );
         int size = vsnprintf( nullptr, 0, format, cova );
-        va_end( arg_list );
+        va_end( cova );
         resize( size );
         va_copy( cova, arg_list );
         vsnprintf( &at( 0 ), size + 1, format, cova );
-        va_end( arg_list );
+        va_end( cova );
     }
 }
 
