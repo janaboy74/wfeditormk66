@@ -25,13 +25,15 @@ public:
     void                                on_image_load_clicked();
     void                                on_image_save_clicked();
     void                                on_bin_file_load();
+    void                                on_bin_file_load_compressed();
     void                                on_bin_file_save();
     void                                on_bin_file_save_with_preview();
     void                                on_filename_changed( const char *filename );
-    void                                readFile( ustring filename );
+    void                                readFile( ustring filename, bool ascompressed = false );
     void                                saveFile( ustring filename );
     Box                                 gVBox, gHBox, gHBox2;
     MyArea                              drawArea;
+    void                                showError( const char *message );
 };
 
 class ExampleApplication : public Application {

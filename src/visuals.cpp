@@ -156,10 +156,10 @@ MyArea::MyArea() : posX( 0 ), posY( 0 ), watchfaceWidth( 240 ), watchfaceHeight(
     doBackground();
     updateTypes();
     referenceTime = system_clock::now();
-};
+}
 
 ///////////////////////////////////////
-MyArea::~MyArea() {};
+MyArea::~MyArea() {}
 ///////////////////////////////////////
 
 ///////////////////////////////////////
@@ -220,9 +220,9 @@ void MyArea::doBackground() {
 }
 
 ///////////////////////////////////////
-void MyArea::setup( const char * filename ) {
+void MyArea::setup( const char * filename, bool ascompressed ) {
 ///////////////////////////////////////
-    binfile.readFile( filename );
+    binfile.readFile( filename, ascompressed );
     signal_filename_changed.emit( filename );
     watchfaceWidth = binfile.hdr.w;
     watchfaceHeight = binfile.hdr.h;
@@ -882,6 +882,12 @@ void MyArea::on_add_clicked() {
         return;
 
     int itemid = itemTextToID( gNewTypes.get_active_text().c_str() );
+
+    if( binfile.isCompressed( itemid )) {
+        showError( "Cannot add compressed items!" );
+        return;
+    }
+
     imgitem item;
     item.type = itemid;
     item.width = 16;
@@ -958,7 +964,17 @@ bool MyArea::on_timeout() {
 }
 
 ///////////////////////////////////////
-MyArea::type_filename_changed MyArea::filename_changed()
-{
+void MyArea::showError( const char *message ) {
+///////////////////////////////////////
+    MessageDialog messageBox(*(ApplicationWindow*) this->get_parent(), message, true, MESSAGE_ERROR, BUTTONS_OK, true );
+    messageBox.set_title( "Error" );
+    messageBox.set_modal();
+    messageBox.set_position( WindowPosition::WIN_POS_CENTER );
+    messageBox.run();
+}
+
+///////////////////////////////////////
+MyArea::type_filename_changed MyArea::filename_changed() {
+///////////////////////////////////////
   return signal_filename_changed;
 }

@@ -48,7 +48,7 @@ public:
     virtual                            ~MyArea();
     void                                updateTypes();
     void                                doBackground();
-    void                                setup( const char *filename );
+    void                                setup( const char *filename, bool ascompressed = false );
     void                                setupDir( const char * directory );
     void                                write( const char *filename );
     void                                createPreview();
@@ -69,6 +69,7 @@ public:
     void                                on_add_height_clicked();
     void                                on_copy_image_clicked();
     bool                                on_timeout();
+    void                                showError( const char *message );
     type_filename_changed               filename_changed();
     int                                 watchfaceWidth;
     int                                 watchfaceHeight;

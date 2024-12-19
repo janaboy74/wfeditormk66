@@ -151,6 +151,10 @@ void MyWindow::on_image_load_clicked() {
         return;
 
     int itemid = drawArea.itemTextToID( drawArea.gTypes.get_active_text().c_str() );
+    if( drawArea.binfile.isCompressed( itemid )) {
+        showError( "Cannot change compressed items!" );
+        return;
+    }
 
     ustring filename = getFilenameDialog( "Please choose a file", FILE_CHOOSER_ACTION_OPEN, "png" );
 
@@ -211,6 +215,15 @@ void MyWindow::on_bin_file_load() {
     }
 }
 
+void MyWindow::on_bin_file_load_compressed()
+{
+    ustring filename = getFilenameDialog( "Please choose a compressed file", FILE_CHOOSER_ACTION_OPEN, "bin" );
+
+    if( filename.size() ) {
+        readFile( filename, true );
+    }
+}
+
 ///////////////////////////////////////
 void MyWindow::on_bin_file_save() {
 ///////////////////////////////////////
@@ -224,6 +237,11 @@ void MyWindow::on_bin_file_save() {
 ///////////////////////////////////////
 void MyWindow::on_bin_file_save_with_preview() {
 ///////////////////////////////////////
+    if( drawArea.binfile.isCompressed( 4 )) {
+        showError( "Cannot save compressed watchface with preview!" );
+        return;
+    }
+
     drawArea.createPreview();
     ustring filename = getFilenameDialog( "Please choose a file", FILE_CHOOSER_ACTION_SAVE, "bin" );
 
@@ -242,15 +260,25 @@ void MyWindow::on_filename_changed( const char *filename )
 }
 
 ///////////////////////////////////////
-void MyWindow::readFile( ustring filename ) {
+void MyWindow::readFile( ustring filename, bool ascompressed ) {
 ///////////////////////////////////////
-    drawArea.setup( filename.c_str() );
+    drawArea.setup( filename.c_str(), ascompressed );
 }
 
 ///////////////////////////////////////
 void MyWindow::saveFile( ustring filename ) {
 ///////////////////////////////////////
     drawArea.write( filename.c_str() );
+}
+
+///////////////////////////////////////
+void MyWindow::showError( const char *message ) {
+///////////////////////////////////////
+    MessageDialog messageBox( *this, message, true, MESSAGE_ERROR, BUTTONS_OK, true );
+    messageBox.set_title( "Error" );
+    messageBox.set_modal();
+    messageBox.set_position( WindowPosition::WIN_POS_CENTER );
+    messageBox.run();
 }
 
 ///////////////////////////////////////
@@ -287,6 +315,7 @@ void ExampleApplication::on_activate() {
 
     myWindow->signal_hide().connect( sigc::mem_fun( *this, &ExampleApplication::on_window_hide ));
     add_action( "load", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_load ));
+    add_action( "loadascompressed", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_load_compressed ));
     add_action( "save", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_save ));
     add_action( "save_with_preview", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_save_with_preview ));
     add_action( "quit", sigc::mem_fun( *this, &ExampleApplication::on_menu_file_quit ));
@@ -297,6 +326,7 @@ void ExampleApplication::on_activate() {
     auto file = Gio::Menu::create();
     app_menu->append_submenu( "_File", file );
     file->append("_Load bin", "app.load");
+    file->append("_Load as compressed bin", "app.loadascompressed");
     file->append("_Save bin", "app.save");
     file->append("Save bin with &preview", "app.save_with_preview" );
     file->append("_Quit", "app.quit");
@@ -341,7 +371,7 @@ void ExampleApplication::on_show_checkerboard_clicked() {
 ///////////////////////////////////////
 void ExampleApplication::on_menu_help_about() {
 ///////////////////////////////////////
-    MessageDialog messageBox( *myWindow.get(), "MK66 Watchface editor!\nCreated by János Klingl", true, MESSAGE_INFO, BUTTONS_OK, true );
+    MessageDialog messageBox( *myWindow.get(), "MK66 Watchface editor!", true, MESSAGE_INFO, BUTTONS_OK, true );
     messageBox.set_title( "About" );
     messageBox.set_modal();
     messageBox.set_position( WindowPosition::WIN_POS_CENTER );

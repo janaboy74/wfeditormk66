@@ -12,6 +12,51 @@ using namespace std;
 #pragma pack( push )
 #pragma pack( 1 )
 
+///////////////////////////////////////
+template <class V, typename Compare = std::less<V>, typename Alloc = std::allocator<V>> struct coreset : public std::set<V> {
+///////////////////////////////////////
+    coreset() : std::set<V> () {}
+    coreset( std::initializer_list<V> init, const Compare& comp = Compare(), const Alloc& alloc = Alloc() ) : std::set<V>( init, comp, alloc ) {}
+    V &operator[]( const V val ) {
+        static V dummy;
+        if( contains( val ))
+            return std::set< V>::operator[]( val );
+        return dummy;
+    }
+    bool contains( const V &val ) const {
+        return std::set<V>::find( val ) != this->end();
+    }
+};
+
+//-----------------------
+template< class T > class sharedObject : public shared_ptr<T[]> {
+//-----------------------
+public:
+    typedef T dataType;
+protected:
+    size_t dataCount;
+public:
+    sharedObject() {
+        dataCount = 0;
+    }
+    sharedObject( const sharedObject<T> &source ) {
+        shared_ptr<T[]>(*this) = source.get();
+        this->dataSize = source->length;
+    }
+    sharedObject<T> &set( const T *source, size_t dataCount ) {
+        this->reset( new T[ dataCount ] );
+        this->dataCount = dataCount;
+        memcpy( this->get(), source, sizeof( T ) * dataCount);
+        return *this;
+    }
+    size_t size() const  {
+        return sizeof( T ) * dataCount;
+    }
+    size_t count() const  {
+        return dataCount;
+    }
+};
+
 struct RGBColor {
     unsigned char                       r;
     unsigned char                       g;
@@ -54,6 +99,7 @@ struct imgitem : public item {
     size_t                              count;
     shared_ptr<unsigned short[]>        orig;
     shared_ptr<unsigned int[]>          RGB32;
+    sharedObject<uint8_t>               compressed;
     /* constructor */                   imgitem();
     /* constructor */                   imgitem( const item &other );
     /* constructor */                   imgitem( const imgitem &other );
@@ -66,15 +112,18 @@ struct imgitem : public item {
 struct watchface {
     size_t                              size;
     shared_ptr<unsigned char[]>         buffer;
+    coreset<uint8_t>                    exception;
     map<int, imgitem>                   items;
     header                              hdr;
     int                                 maxHeight;
+    int                                 hdrCompress;
     corestring                          curFilename;
+    bool                                isCompressed( int itemid );
     /* constructor */                   watchface();
     bool                                hasitem( int itemid );
-    virtual bool                        readFile( const char *filename );
+    virtual bool                        readFile( const char *filename, bool ascompressed = false );
     void                                writeFile( const char * filename );
-    void                                parse();
+    void                                parse( bool ascompressed = false );
     void                                updateMaxHeight();
 };
 

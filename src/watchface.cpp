@@ -10,21 +10,6 @@
 #endif
 
 ///////////////////////////////////////
-template <class V, typename Compare = std::less<V>, typename Alloc = std::allocator<V>> struct coreset : public std::set<V> {
-///////////////////////////////////////
-    coreset( std::initializer_list<V> init, const Compare& comp = Compare(), const Alloc& alloc = Alloc() ) : std::set<V>( init, comp, alloc ) {}
-    V &operator[]( const V val ) {
-        static V dummy;
-        if( contains( val ))
-            return std::set< V>::operator[]( val );
-        return dummy;
-    }
-    bool contains( const V &val ) const {
-        return std::set<V>::find( val ) != this->end();
-    }
-};
-
-///////////////////////////////////////
 RGBColor::RGBColor( unsigned char r, unsigned char g, unsigned char b ) {
 ///////////////////////////////////////
     this->r = r;
@@ -161,8 +146,16 @@ void imgitem::updateAlpha() {
 }
 
 ///////////////////////////////////////
-watchface::watchface() : maxHeight( 0 ) {}
+bool watchface::isCompressed( int itemid ) {
 ///////////////////////////////////////
+    return( hdrCompress == COMPRESS_FORMAT && (( itemid > 3 && itemid < 43 ) | exception.contains( itemid )));
+}
+
+///////////////////////////////////////
+watchface::watchface() : maxHeight( 0 ) {
+///////////////////////////////////////
+    exception = { 71 };
+}
 
 ///////////////////////////////////////
 bool watchface::hasitem( int itemid ) {
@@ -171,7 +164,7 @@ bool watchface::hasitem( int itemid ) {
 }
 
 ///////////////////////////////////////
-bool watchface::readFile( const char *filename ) {
+bool watchface::readFile( const char *filename, bool ascompressed ) {
 ///////////////////////////////////////
     struct stat st;
     int fd = ::open( filename, O_RDONLY | O_BINARY );
@@ -184,7 +177,7 @@ bool watchface::readFile( const char *filename ) {
     close( fd );
     bool result = ( readBytes == size );
     curFilename = filename;
-    parse();
+    parse( ascompressed );
     return result;
 }
 
@@ -194,11 +187,13 @@ void watchface::writeFile( const char * filename ) {
     size_t len;
     (void) len;
     size_t pos = items.size() * sizeof( item ) + 2 + sizeof( header );
-    memset(&hdr.compress[0], 0, sizeof(hdr.compress));// !!! remove if compress is done !!!
 
     for( auto &itm : items ) {
         itm.second.pos = pos;
-        pos += itm.second.width * itm.second.height * itm.second.imgCount * 2;
+        if( itm.second.compressed.get() ) {
+            pos += itm.second.compressed.size();
+        } else
+            pos += itm.second.width * itm.second.height * itm.second.imgCount * 2;
     }
 
     int fd = ::open( filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666 );
@@ -217,7 +212,12 @@ void watchface::writeFile( const char * filename ) {
 
     for( auto &itm : items ) {
         int sz = itm.second.width * itm.second.height * itm.second.imgCount * 2;
-        memcpy( writebuff.get() + writepos, itm.second.orig.get(), sz );
+        if( itm.second.compressed.get() ) {
+            sz = itm.second.compressed.size();
+            memcpy( writebuff.get() + writepos, itm.second.compressed.get(), itm.second.compressed.size() );
+        } else {
+            memcpy( writebuff.get() + writepos, itm.second.orig.get(), sz );
+        }
         writepos += sz;
     }
 
@@ -235,7 +235,7 @@ struct compress {
 };
 
 ///////////////////////////////////////
-void watchface::parse() {
+void watchface::parse( bool ascompressed ) {
 ///////////////////////////////////////
     unsigned char *start = ( unsigned char * ) buffer.get();
     hdr = *( header * ) start;
@@ -249,9 +249,7 @@ void watchface::parse() {
     unsigned char *data = ( unsigned char * ) tmp;
     int shift = data - start;
 
-    coreset<uint8_t> exception = { 71 };
-
-    int hdrCompress = hdr.compress[0] & 0xFFFFFF00; /* mask compress format */
+    hdrCompress = hdr.compress[0] & 0xFFFFFF00; /* mask compress format */
 
     for( auto &item : items ) {
         item.second.pos = ( item.second.pos - shift );
@@ -265,20 +263,21 @@ void watchface::parse() {
         // If bin file's compress format(address 0x00000010~0x00000017) is 0x02FF01??.
         // We need to special process to get images.
         // ※ '?' is don't care.
-        if( hdrCompress == COMPRESS_FORMAT && (( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) {
+        if( isCompressed( item.first )) {
             uint32_t *head = ( uint32_t * ) ( data + item.second.pos );
             for( size_t imgID = 0 ; imgID < item.second.imgCount; ++imgID ) {
                 unsigned char *start = ( unsigned char * ) head;
                 uint32_t *next = ( uint32_t * ) ( start + *head ); ++head;
                 start = ( unsigned char * ) head;
                 memcpy(( void* ) &startPositions.at( 0 ), head, item.second.height * 4 );
+                unsigned short * from = 0;
                 for( size_t y = 0; y < item.second.height; ++y ) {
                     ptr = end;
                     end = ( ptr + item.second.width );
                     unsigned short *src = ( unsigned short * ) ( start + startPositions[ y ] );
                     while( ptr < end ) {
                         compress *params = (compress*)src; ++src;
-                        auto from = src;
+                        from = src;
                         for( size_t s = 0; s < params->size; ++s ) {
                             for( size_t c = 0; c < params->count; ++c ) {
                                 if( ptr >= end )
@@ -290,12 +289,20 @@ void watchface::parse() {
                         src += params->size;
                     }
                 }
+                if( ascompressed ) {
+                    size_t bytesCompressed = ( uint8_t * )( from ) - (uint8_t *) ( data + item.second.pos );
+                    item.second.compressed.set(( const uint8_t * ) data + item.second.pos, bytesCompressed );
+                }
                 head = ++next;
             }
         } else {
             memcpy( item.second.orig.get(), data + item.second.pos, item.second.count * 2 );
         }
         item.second.toRGB32();
+    }
+    if( !ascompressed ) {
+        memset(&hdr.compress[0], 0, sizeof(hdr.compress));
+        hdrCompress = 0;
     }
     updateMaxHeight();
 }
