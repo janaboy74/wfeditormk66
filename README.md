@@ -1,7 +1,11 @@
-# Watchface editor for MK66 and P32D Smartwatches
+# Watchface editor for MK66, QX11 and P32D Smartwatches
 
 ![image](https://github.com/janaboy74/wfeditormk66/assets/54952408/f9b74273-6cd8-4427-b086-459cfb1435c8)
 
+# $${\color{red}Hot\ news:}$$
+wfcompress added for compressing watchfaces ( for the test binaries check the latest release ) - BETA! - upload to watch is not yet tested
+
+# Summary
 This project is a Watchface editor for MK66.
 - The project uses gtkmm and now it comes with binary for Linux and Windows.
 - This software comes with no warranty. Use it at own risk.
