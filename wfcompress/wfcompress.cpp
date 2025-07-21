@@ -368,7 +368,7 @@ void doCompress( const char *infile, const char *outfile ) {
     unsigned char *data = ( unsigned char * ) tmp;
     int shift = data - start;
 
-    coreset<uint8_t> exception = { 71 };
+    coreset<uint8_t> exception = { 47, 48, 71 };
 
     int hdrCompress = hdr.compress[0] & 0xFFFFFF00; /* mask compress format */
 
@@ -379,7 +379,7 @@ void doCompress( const char *infile, const char *outfile ) {
         auto ptr = ( uint16_t * ) &*item.second.orig.get();
         auto end = ptr;
 
-        if( hdrCompress == COMPRESS_FORMAT && (( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) {
+        if( hdrCompress == COMPRESS_FORMAT && (( item.first >= 4 && item.first <= 42 ) | exception.contains( item.first ))) {
             uint32_t *head = ( uint32_t * ) ( data + item.second.pos );
             vector<uint32_t> startPositions;
             startPositions.resize( item.second.height );
@@ -416,7 +416,7 @@ void doCompress( const char *infile, const char *outfile ) {
         uint32_t filepos = 0;
         vector<uint8_t> res;
         uint32_t imgsize = item.second.width * item.second.height;
-        if((( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) {
+        if((( item.first >= 4 && item.first <= 42 ) | exception.contains( item.first ))) {
             for( uint16_t imgid = 0; imgid < item.second.imgCount; ++imgid ) {
                 vector<uint8_t> result;
                 vector<uint32_t> ps;

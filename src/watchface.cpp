@@ -249,7 +249,7 @@ void watchface::parse() {
     unsigned char *data = ( unsigned char * ) tmp;
     int shift = data - start;
 
-    coreset<uint8_t> exception = { 71 };
+    coreset<uint8_t> exception = { 47, 48, 71 };
 
     int hdrCompress = hdr.compress[0] & 0xFFFFFF00; /* mask compress format */
 
@@ -265,7 +265,7 @@ void watchface::parse() {
         // If bin file's compress format(address 0x00000010~0x00000017) is 0x02FF01??.
         // We need to special process to get images.
         // ※ '?' is don't care.
-        if( hdrCompress == COMPRESS_FORMAT && (( item.first > 3 && item.first < 43 ) | exception.contains( item.first ))) {
+        if( hdrCompress == COMPRESS_FORMAT && (( item.first >= 4 && item.first <= 42 ) | exception.contains( item.first ))) {
             uint32_t *head = ( uint32_t * ) ( data + item.second.pos );
             for( size_t imgID = 0 ; imgID < item.second.imgCount; ++imgID ) {
                 unsigned char *start = ( unsigned char * ) head;
