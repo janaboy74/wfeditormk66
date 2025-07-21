@@ -3,7 +3,9 @@
 ![image](https://github.com/janaboy74/wfeditormk66/assets/54952408/f9b74273-6cd8-4427-b086-459cfb1435c8)
 
 # $${\color{red}Hot\ news:}$$
-wfcompress added for compressing watchfaces ( for the test binaries check the latest release ) - BETA! - upload to watch is not yet tested
+wfcompress added for compressing watchfaces ( binaries are in v0.6.6 release ).
+Tested with My QX11.
+It has some issue with wide watchfaces, so be cautious with them.
 
 # Summary
 This project is a Watchface editor for MK66.
