@@ -232,13 +232,8 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
     match mach;
     uint32_t maxlen = src.size();
     uint32_t maxdiff = maxlen / 2;
-    uint32_t max = 0;
-    uint32_t from = 0;
-    uint32_t count = 0;
-    uint32_t win = 4;
     uint32_t acount = 0;
     uint32_t afrom = 0;
-    uint32_t ad = 0;
     int32_t limit = 2;
     if( maxdiff > 127 )
         maxdiff = 127;
@@ -267,7 +262,6 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
         auto mch = found.end();
         int32_t npos = maxlen;
         int32_t win = 0;
-        int32_t pres = 6;
         for( auto next = found.begin(); next != found.end(); ++next ) {
             if( npos >= next->start && next->start >= pos ) {
                 if( next->win > win ) {
@@ -482,7 +476,6 @@ void doCompress( const char *infile, const char *outfile ) {
 
 int main( int argc, const char **argv )
 {
-    const char *filename;
     bool used = false;
 
     for( int i = 1; i < argc; ++i ) {
