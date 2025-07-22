@@ -240,9 +240,7 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
     for( uint32_t d = 1; d < maxdiff; ++d ) {
         for( uint32_t n = 0; n <= maxlen; ++n ) {
             afrom = n;
-            for( ; n < maxlen; ++n ) {
-                if( n + d == maxlen )
-                    break;
+            for( ; n + d < maxlen; ++n ) {
                 if( src[ n ] != src[ n + d ] ) {
                     break;
                 }
@@ -271,10 +269,10 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
                 }
             }
         }
-        if( npos != pos ) {
+        if( npos > pos ) {
             int32_t ps = 0;
+            int32_t sz = npos - pos;
             for( ;; ) {
-                int32_t sz = npos - pos;
                 cprs.count = 1;
                 if( ps + 255 < sz ) {
                     cprs.size = 255;
@@ -284,18 +282,17 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
                 if( ps >= sz )
                     break;
                 output.insert( output.end(), ( uint8_t *) &cprs, ( uint8_t *) ( &cprs + 1 ));
-                output.insert( output.end(), ( uint8_t *) &*( src.begin() + pos + ps), ( uint8_t *) &*( src.begin() + pos + ps + sz ));
+                output.insert( output.end(), ( uint8_t *) &*( src.begin() + pos + ps), ( uint8_t *) &*( src.begin() + pos + ps + cprs.size ));
                 ps += cprs.size;
             }
             npos = pos + ps;
         }
         if( found.end() == mch )
             break;
-        auto mxtch = &*mch;
         if( mch != found.end() ) {
             int32_t pc = 0;
             for( ;; ) {
-                cprs.size = mxtch->block.size();
+                cprs.size = mch->block.size();
                 if( pc + 255 < mch->count ) {
                     cprs.count = 255;
                 } else {
@@ -304,7 +301,7 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
                 if( pc >= mch->count )
                     break;
                 output.insert( output.end(), ( uint8_t *) &cprs, ( uint8_t *) ( &cprs + 1 ));
-                output.insert( output.end(), ( uint8_t *) mxtch->block.begin().base(), ( uint8_t *) mxtch->block.end().base() );
+                output.insert( output.end(), ( uint8_t *) &*mch->block.begin(), ( uint8_t *) &*mch->block.end() );
                 pc += cprs.count;
             }
             npos = mch->start + mch->count * mch->block.size();
@@ -338,16 +335,16 @@ unsigned int crc32b( unsigned char *message, int len ) {
 ///////////////////////////////////////
 void doCompress( const char *infile, const char *outfile ) {
 ///////////////////////////////////////
-    size_t                              size;
+    ssize_t                              filesize;
     shared_ptr<unsigned char[]>         buffer;
     struct stat st;
     int fdin = ::open( infile, O_RDONLY | O_BINARY );
     if( fdin < 0 )
         return;
     fstat( fdin, &st );
-    size = st.st_size;
-    buffer = shared_ptr<unsigned char[]>( new unsigned char[ size ]);
-    std::ignore = read( fdin, buffer.get(), size );
+    filesize = st.st_size;
+    buffer = shared_ptr<unsigned char[]>( new unsigned char[ filesize ]);
+    std::ignore = read( fdin, buffer.get(), filesize );
     close( fdin );
     unsigned char *start = ( unsigned char * ) buffer.get();
     header hdr = *( header * ) start;
@@ -447,6 +444,13 @@ void doCompress( const char *infile, const char *outfile ) {
     for( auto &itm : items ) {
         itm.second.pos = datasize;
         datasize += itm.second.data.size();
+    }
+
+    if( datasize > filesize ) {
+        printf( "unable to compress: %s - the compressed size is larger than the original: %ld -> %ld\n", infile, filesize, datasize );
+        return;
+    } else {
+        printf( "%s compression: %1.2f%%( %ld -> %ld )\n", infile, 100.f * ( filesize - datasize ) / filesize, filesize, datasize );
     }
 
     head.compress[ 0 ] = 0x02ff0100;
