@@ -3,12 +3,11 @@
 ![image](https://github.com/janaboy74/wfeditormk66/assets/54952408/f9b74273-6cd8-4427-b086-459cfb1435c8)
 
 # $${\color{red}Hot\ news:}$$
-wfcompress added for compressing watchfaces ( binaries are in v0.6.6 release ).
+wfcompress for compressing watchfaces:
 - Tested with My QX11.
-- If you have downloaded the previous release it is recommended to redownload it.
-- The main bug removed, but there is still something: In some cases - maybe 25% of the files - recompress of the compressed file results to a few bytes smaller file. It should not happen, but visually I haven't seen any difference.
+- New release in v0.6.7 release. Fixed the algorithm issues.
 - The best is if you backup your source before compression.
-- New thing: If the compressed size is bigger than the original, then the result will not written to disk, just a message will be displayed. In normal case the gain in percent and the sizes will be displayed.
+- If the compressed size is bigger than the original, then the result will not written to disk, just a message will be displayed. In normal case the gain in percent and the sizes will be displayed.
 
 # Summary
 This project is a Watchface editor for MK66.
