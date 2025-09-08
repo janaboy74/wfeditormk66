@@ -233,27 +233,69 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
     uint32_t maxlen = src.size();
     uint32_t maxdiff = maxlen / 2;
     uint32_t acount = 0;
-    uint32_t afrom = 0;
-    int32_t limit = 2;
+    int32_t limit = 1;
     if( maxdiff > 127 )
         maxdiff = 127;
-    for( uint32_t d = 1; d < maxdiff; ++d ) {
-        for( uint32_t n = 0; n <= maxlen; ++n ) {
-            afrom = n;
-            for( ; n + d < maxlen; ++n ) {
-                if( src[ n ] != src[ n + d ] ) {
-                    break;
-                }
+    uint16_t col = src[ 0 ];
+    vector<pair<uint32_t,uint16_t>> cnts;
+    int32_t cnt = 0;
+    for( uint32_t n = 1; n < maxlen; ++n ) {
+        uint16_t acol = src[ n ];
+        if( col == acol ) {
+            ++cnt;
+            continue;
+        }
+        cnts.push_back( pair<uint32_t,uint16_t>( cnt + 1, col ));
+        col = acol;
+        cnt = 0;
+    }
+    cnt = -1;
+    uint32_t size = 0;
+    uint32_t act = 0;
+    uint32_t from = 0;
+    for( uint32_t s = 0; s < cnts.size(); ++s ) {
+        uint32_t &acnt = cnts[ s ].first;
+        if( cnt == acnt ) {
+            ++size;
+            continue;
+        }
+        ++size;
+        if( cnt > 0 ) {
+            mach.win = cnt * size - size;
+            act = 0;
+            for( uint32_t t = 0; t < from; ++t ) {
+                uint32_t &tcnt = cnts[ t ].first;
+                act += tcnt;
             }
-            acount = ( n - afrom ) / d;
-            int32_t awin = ( acount - 1 ) * ( d * 2 ) - 2 * d;
-            if( awin >= limit ) {
-                mach.win = awin;
-                mach.start = afrom;
-                mach.count = acount + 1;
-                mach.block.assign( src.data() + afrom, src.data() + afrom + d );
+            if( mach.win > limit ) {
+                mach.count = cnt;
+                mach.start = act;
+                mach.block.clear();
+                for( uint32_t n = 0; n < size; ++n ) {
+                    mach.block.push_back( cnts[ from + n ].second );
+                }
                 found.push_back( mach );
             }
+        }
+        size = 0;
+        from = s;
+        cnt = acnt;
+    }
+    if( cnt > 0 ) {
+        mach.win = cnt * size - size;
+        act = 0;
+        for( uint32_t t = 0; t < from; ++t ) {
+            uint32_t &tcnt = cnts[ t ].first;
+            act += tcnt;
+        }
+        if( mach.win > limit ) {
+            mach.count = cnt;
+            mach.start = act;
+            mach.block.clear();
+            for( uint32_t n = 0; n < size; ++n ) {
+                mach.block.push_back( cnts[ from + n ].second );
+            }
+            found.push_back( mach );
         }
     }
     for( int32_t pos = 0; pos < maxlen; ) {
