@@ -253,8 +253,9 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
     uint32_t size = 0;
     uint32_t act = 0;
     uint32_t from = 0;
+    int32_t acnt = 0;
     for( uint32_t s = 0; s < cnts.size(); ++s ) {
-        uint32_t &acnt = cnts[ s ].first;
+        acnt = cnts[ s ].first;
         if( cnt == acnt ) {
             ++size;
             continue;
@@ -281,7 +282,7 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
         from = s;
         cnt = acnt;
     }
-    if( cnt > 0 ) {
+    if( size > 0 ) {
         mach.win = cnt * size - size;
         act = 0;
         for( uint32_t t = 0; t < from; ++t ) {
@@ -289,7 +290,7 @@ vector<uint8_t> compressline( vector<uint16_t> src ) {
             act += tcnt;
         }
         if( mach.win > limit ) {
-            mach.count = cnt;
+            mach.count = acnt;
             mach.start = act;
             mach.block.clear();
             for( uint32_t n = 0; n < size; ++n ) {
@@ -375,7 +376,7 @@ unsigned int crc32b( unsigned char *message, int len ) {
 }
 
 ///////////////////////////////////////
-void doCompress( const char *infile, const char *outfile ) {
+void doCompress( const char *infile, const char *outfile, bool decompress ) {
 ///////////////////////////////////////
     ssize_t                              filesize;
     shared_ptr<unsigned char[]>         buffer;
@@ -449,7 +450,7 @@ void doCompress( const char *infile, const char *outfile ) {
         uint32_t filepos = 0;
         vector<uint8_t> res;
         uint32_t imgsize = item.second.width * item.second.height;
-        if((( item.first >= 4 && item.first <= 42 ) | exception.contains( item.first ))) {
+        if( !decompress && (( item.first >= 4 && item.first <= 42 ) | exception.contains( item.first ))) {
             for( uint16_t imgid = 0; imgid < item.second.imgCount; ++imgid ) {
                 vector<uint8_t> result;
                 vector<uint32_t> ps;
@@ -488,15 +489,24 @@ void doCompress( const char *infile, const char *outfile ) {
         datasize += itm.second.data.size();
     }
 
-    if( datasize > filesize ) {
-        printf( "unable to compress: %s - the compressed size is larger than the original: %ld -> %ld\n", infile, filesize, datasize );
-        return;
+    if( decompress ) {
+        printf( "%s decompression: %ld -> %ld\n", infile, filesize, datasize );
     } else {
-        printf( "%s compression: %1.2f%%( %ld -> %ld )\n", infile, 100.f * ( filesize - datasize ) / filesize, filesize, datasize );
+        if( datasize > filesize ) {
+            printf( "unable to compress: %s - the compressed size is larger than the original: %ld -> %ld\n", infile, filesize, datasize );
+            return;
+        } else {
+            printf( "%s compression: %1.2f%%( %ld -> %ld )\n", infile, 100.f * ( filesize - datasize ) / filesize, filesize, datasize );
+        }
     }
 
-    head.compress[ 0 ] = 0x02ff0100;
-    head.compress[ 1 ] = 0xffffff15;
+    if( decompress ) {
+        head.compress[ 0 ] = 0x0;
+        head.compress[ 1 ] = 0x0;
+    } else {
+        head.compress[ 0 ] = 0x02ff0100;
+        head.compress[ 1 ] = 0xffffff15;
+    }
     int fdout = ::open( outfile, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666 );
     head.datasize = datasize - sizeof( header );
     vector<uint8_t> writebuff;
@@ -523,12 +533,17 @@ void doCompress( const char *infile, const char *outfile ) {
 int main( int argc, const char **argv )
 {
     bool used = false;
+    bool decompress = false;
 
     for( int i = 1; i < argc; ++i ) {
+        if( !strcmp( argv[ i ], "-d" )) {
+            decompress = true;
+            continue;
+        }
         if( argc >= i + 2 ) {
             const char *infile = argv[ i ];
             const char *outfile = argv[ ++i ]; ++i;
-            doCompress( infile, outfile );
+            doCompress( infile, outfile, decompress );
             used = true;
         }
     }
