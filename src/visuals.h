@@ -51,6 +51,7 @@ public:
     void                                setup( const char *filename );
     void                                setupDir( const char * directory );
     void                                write( const char *filename );
+    void                                writeCompressed( const char *filename );
     void                                createPreview();
     corestring                          getDefault( int id );
     int                                 itemTextToID( const char *name );

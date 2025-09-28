@@ -253,6 +253,12 @@ void MyArea::write( const char * filename ) {
 }
 
 ///////////////////////////////////////
+void MyArea::writeCompressed( const char * filename ) {
+///////////////////////////////////////
+    binfile.writeCompressed( filename );
+}
+
+///////////////////////////////////////
 void MyArea::createPreview() {
 ///////////////////////////////////////
     if( !binfile.hasitem( 10 ) && binfile.hasitem( 17 ) ) {

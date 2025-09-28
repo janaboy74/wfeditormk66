@@ -10,21 +10,6 @@
 #endif
 
 ///////////////////////////////////////
-template <class V, typename Compare = std::less<V>, typename Alloc = std::allocator<V>> struct coreset : public std::set<V> {
-///////////////////////////////////////
-    coreset( std::initializer_list<V> init, const Compare& comp = Compare(), const Alloc& alloc = Alloc() ) : std::set<V>( init, comp, alloc ) {}
-    V &operator[]( const V val ) {
-        static V dummy;
-        if( contains( val ))
-            return std::set< V>::operator[]( val );
-        return dummy;
-    }
-    bool contains( const V &val ) const {
-        return std::set<V>::find( val ) != this->end();
-    }
-};
-
-///////////////////////////////////////
 RGBColor::RGBColor( unsigned char r, unsigned char g, unsigned char b ) {
 ///////////////////////////////////////
     this->r = r;
@@ -161,7 +146,7 @@ void imgitem::updateAlpha() {
 }
 
 ///////////////////////////////////////
-watchface::watchface() : maxHeight( 0 ) {}
+watchface::watchface() : maxHeight( 0 ), exception( { 47, 48, 71 } ) {}
 ///////////////////////////////////////
 
 ///////////////////////////////////////
@@ -228,6 +213,216 @@ void watchface::writeFile( const char * filename ) {
 }
 
 ///////////////////////////////////////
+vector<uint8_t> watchface::compressline( vector<uint16_t> src ) {
+///////////////////////////////////////
+    vector<uint8_t> output;
+    compress cprs;
+    if( src.size() < 6 ) {
+        cprs.count = 1;
+        cprs.size = src.size();
+        output.insert( output.end(), ( uint8_t *) &cprs, ( uint8_t *) ( &cprs + 1 ));
+        output.insert( output.end(), ( uint8_t *) &src.at( 0 ), ( uint8_t *) &src.at( cprs.size ));
+        return output;
+    }
+    list<match> found;
+    match mach;
+    uint32_t maxlen = src.size();
+    uint32_t maxdiff = maxlen / 2;
+    uint32_t acount = 0;
+    int32_t limit = 1;
+    if( maxdiff > 127 )
+        maxdiff = 127;
+    uint16_t col = src[ 0 ];
+    vector<pair<uint32_t,uint16_t>> cnts;
+    int32_t cnt = 0;
+    for( uint32_t n = 1; n < maxlen; ++n ) {
+        uint16_t acol = src[ n ];
+        if( col == acol ) {
+            ++cnt;
+            continue;
+        }
+        cnts.push_back( pair<uint32_t,uint16_t>( cnt + 1, col ));
+        col = acol;
+        cnt = 0;
+    }
+    cnt = -1;
+    uint32_t size = 0;
+    uint32_t act = 0;
+    uint32_t from = 0;
+    int32_t acnt = 0;
+    for( uint32_t s = 0; s < cnts.size(); ++s ) {
+        acnt = cnts[ s ].first;
+        if( cnt == acnt ) {
+            ++size;
+            continue;
+        }
+        ++size;
+        if( cnt > 0 ) {
+            mach.win = cnt * size - size;
+            act = 0;
+            for( uint32_t t = 0; t < from; ++t ) {
+                uint32_t &tcnt = cnts[ t ].first;
+                act += tcnt;
+            }
+            if( mach.win > limit ) {
+                mach.count = cnt;
+                mach.start = act;
+                mach.block.clear();
+                for( uint32_t n = 0; n < size; ++n ) {
+                    mach.block.push_back( cnts[ from + n ].second );
+                }
+                found.push_back( mach );
+            }
+        }
+        size = 0;
+        from = s;
+        cnt = acnt;
+    }
+    if( size > 0 ) {
+        mach.win = cnt * size - size;
+        act = 0;
+        for( uint32_t t = 0; t < from; ++t ) {
+            uint32_t &tcnt = cnts[ t ].first;
+            act += tcnt;
+        }
+        if( mach.win > limit ) {
+            mach.count = acnt;
+            mach.start = act;
+            mach.block.clear();
+            for( uint32_t n = 0; n < size; ++n ) {
+                mach.block.push_back( cnts[ from + n ].second );
+            }
+            found.push_back( mach );
+        }
+    }
+    for( int32_t pos = 0; pos < maxlen; ) {
+        auto mch = found.end();
+        int32_t npos = maxlen;
+        int32_t win = 0;
+        for( auto next = found.begin(); next != found.end(); ++next ) {
+            if( npos >= next->start && next->start >= pos ) {
+                if( next->win > win ) {
+                    mch = next;
+                    npos = next->start;
+                    win = next->win;
+                }
+            }
+        }
+        if( npos > pos ) {
+            int32_t ps = 0;
+            int32_t sz = npos - pos;
+            for( ;; ) {
+                cprs.count = 1;
+                if( ps + 255 < sz ) {
+                    cprs.size = 255;
+                } else {
+                    cprs.size = sz - ps;
+                }
+                if( ps >= sz )
+                    break;
+                output.insert( output.end(), ( uint8_t *) &cprs, ( uint8_t *) ( &cprs + 1 ));
+                output.insert( output.end(), ( uint8_t *) &*( src.begin() + pos + ps), ( uint8_t *) &*( src.begin() + pos + ps + cprs.size ));
+                ps += cprs.size;
+            }
+            npos = pos + ps;
+        }
+        if( found.end() == mch )
+            break;
+        if( mch != found.end() ) {
+            int32_t pc = 0;
+            for( ;; ) {
+                cprs.size = mch->block.size();
+                if( pc + 255 < mch->count ) {
+                    cprs.count = 255;
+                } else {
+                    cprs.count = mch->count - pc;
+                }
+                if( pc >= mch->count )
+                    break;
+                output.insert( output.end(), ( uint8_t *) &cprs, ( uint8_t *) ( &cprs + 1 ));
+                output.insert( output.end(), ( uint8_t *) &*mch->block.begin(), ( uint8_t *) &*mch->block.end() );
+                pc += cprs.count;
+            }
+            npos = mch->start + mch->count * mch->block.size();
+        }
+        pos = npos;
+    }
+    return output;
+}
+
+///////////////////////////////////////
+void watchface::writeCompressed( const char * filename ) {
+///////////////////////////////////////
+    size_t datasize = items.size() * sizeof( item ) + 2 + sizeof( header );
+    map<int, packeditem> packedmap;
+
+    for( auto &item : items ) {
+        packeditem packed;
+        auto &res = packed.data;
+        uint32_t imgsize = item.second.width * item.second.height;
+        item.second.toOrig();
+        if((( item.first >= 4 && item.first <= 42 ) | exception.contains( item.first ))) {
+            for( uint16_t imgid = 0; imgid < item.second.imgCount; ++imgid ) {
+                vector<uint8_t> result;
+                vector<uint32_t> ps;
+                auto start = item.second.orig.get() + imgid * imgsize;
+                for( uint32_t line = 0; line < item.second.height; ++line ) {
+                    vector<uint16_t> src;
+                    src.assign(( uint16_t * )( start + line * item.second.width ), ( uint16_t * )( start + ( line + 1 ) * item.second.width ));
+                    vector<uint8_t> compdata = compressline( src );
+                    ps.push_back( result.size() );
+                    result.insert( result.cend(), compdata.begin(), compdata.end());
+                }
+                ps.insert( ps.begin(), result.size() );
+                auto dta = ps.size() * 4 - 4;
+                for( auto &ps : ps ) {
+                    ps += dta;
+                }
+                auto posptr = (const char * ) &*ps.begin();
+                res.insert( res.end(), posptr, posptr + ps.size() * 4 );
+                res.insert( res.end(), result.begin(), result.end() );
+            }
+        } else {
+            auto posptr = (const char * ) &*item.second.orig.get();
+            res.insert( res.end(), posptr, posptr + item.second.count * 2 );
+        }
+        packed.image = item.second;
+        packed.image.pos = datasize;
+        datasize += res.size();
+        packed.positions.push_back( datasize );
+        packed.sizes.push_back( res.size() );
+        packedmap.insert( pair<int, packeditem>( item.first, packed ));
+    }
+
+    header head = hdr;
+
+    head.compress[ 0 ] = 0x02ff0100;
+    head.compress[ 1 ] = 0xffffff15;
+
+    int fdout = ::open( filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0666 );
+    head.datasize = datasize - sizeof( header );
+    vector<uint8_t> writebuff;
+    uint8_t *dt = 0;
+    for( auto &itm : packedmap ) {
+        dt = ( uint8_t * )( item* ) &itm.second.image;
+        writebuff.insert( writebuff.end(), dt, dt + sizeof( item ));
+    }
+
+    unsigned short clss = 0;
+    dt = ( uint8_t * ) &clss;
+    writebuff.insert( writebuff.end(), dt, dt + 2 );
+
+    for( auto &itm : packedmap ) {
+        writebuff.insert( writebuff.end(), itm.second.data.begin(), itm.second.data.end() );
+    }
+
+    head.crc32b = crc32b( writebuff.data(), head.datasize );
+    std::ignore = ::write( fdout, &head, sizeof( head ));
+    std::ignore = ::write( fdout, writebuff.data(), head.datasize );
+    close( fdout );
+}
+
+///////////////////////////////////////
 struct compress {
 ///////////////////////////////////////
     unsigned char size;
@@ -248,8 +443,6 @@ void watchface::parse() {
 
     unsigned char *data = ( unsigned char * ) tmp;
     int shift = data - start;
-
-    coreset<uint8_t> exception = { 47, 48, 71 };
 
     int hdrCompress = hdr.compress[0] & 0xFFFFFF00; /* mask compress format */
 

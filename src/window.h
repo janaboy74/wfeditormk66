@@ -27,9 +27,11 @@ public:
     void                                on_bin_file_load();
     void                                on_bin_file_save();
     void                                on_bin_file_save_with_preview();
+    void                                on_bin_file_compressed();
     void                                on_filename_changed( const char *filename );
     void                                readFile( ustring filename );
     void                                saveFile( ustring filename );
+    void                                saveCompressed( ustring filename );
     Box                                 gVBox, gHBox, gHBox2;
     MyArea                              drawArea;
 };

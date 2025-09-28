@@ -233,6 +233,16 @@ void MyWindow::on_bin_file_save_with_preview() {
 }
 
 ///////////////////////////////////////
+void MyWindow::on_bin_file_compressed() {
+///////////////////////////////////////
+    ustring filename = getFilenameDialog( "Please choose a file", FILE_CHOOSER_ACTION_SAVE, "bin" );
+
+    if( filename.size() ) {
+        saveCompressed( filename );
+    }
+}
+
+///////////////////////////////////////
 void MyWindow::on_filename_changed( const char *filename )
 ///////////////////////////////////////
 {
@@ -251,6 +261,12 @@ void MyWindow::readFile( ustring filename ) {
 void MyWindow::saveFile( ustring filename ) {
 ///////////////////////////////////////
     drawArea.write( filename.c_str() );
+}
+
+///////////////////////////////////////
+void MyWindow::saveCompressed( ustring filename ) {
+///////////////////////////////////////
+    drawArea.writeCompressed( filename.c_str() );
 }
 
 ///////////////////////////////////////
@@ -288,6 +304,7 @@ void ExampleApplication::on_activate() {
     myWindow->signal_hide().connect( sigc::mem_fun( *this, &ExampleApplication::on_window_hide ));
     add_action( "load", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_load ));
     add_action( "save", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_save ));
+    add_action( "savepacked", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_compressed ));
     add_action( "save_with_preview", sigc::mem_fun( myWindow.get(), &MyWindow::on_bin_file_save_with_preview ));
     add_action( "quit", sigc::mem_fun( *this, &ExampleApplication::on_menu_file_quit ));
     show_checkerboard_action = add_action_bool( "show_checkerboard", sigc::mem_fun( *this, &ExampleApplication::on_show_checkerboard_clicked ));
@@ -298,6 +315,7 @@ void ExampleApplication::on_activate() {
     app_menu->append_submenu( "_File", file );
     file->append("_Load bin", "app.load");
     file->append("_Save bin", "app.save");
+    file->append("Save _compressed", "app.savepacked");
     file->append("Save bin with &preview", "app.save_with_preview" );
     file->append("_Quit", "app.quit");
     auto options = Gio::Menu::create();
